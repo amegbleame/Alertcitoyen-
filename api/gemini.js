@@ -43,4 +43,3 @@ module.exports = async (req, res) => {
     return res.status(500).json({ error: 'Erreur serveur lors de l\'appel à Gemini', detail: String(e) });
   }
 };
-  
