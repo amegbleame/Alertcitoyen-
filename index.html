@@ -2,7 +2,7 @@
 <html lang="fr" dir="ltr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>AlertCitoyen v2.0 — Sécurité Citoyenne</title>
 <meta name="description" content="Signalez anonymement tout acte suspect, crime ou urgence au Togo.">
 <meta name="theme-color" content="#C0392B">
@@ -174,6 +174,7 @@ body.rtl .incident-card.urgence-basse{border-right-color:#27AE60;}
 .dot:nth-child(2){animation-delay:0.2s;}
 .dot:nth-child(3){animation-delay:0.4s;}
 @keyframes typing{0%,60%,100%{transform:translateY(0);}30%{transform:translateY(-8px);}}
+html,body{touch-action:pan-x pan-y;}
 </style>
 </head>
 <body>
@@ -685,6 +686,17 @@ ee:{'badge':'Amegbetɔwo ƒe nyagblɔɖi ƒe mɔ̃','hero-titre':'Dé miaƒe','h
 let langActuelle='fr';
 function t(key){return (TRAD[langActuelle]&&TRAD[langActuelle][key])||TRAD.fr[key]||key;}
 
+// ===== MES PROPRES ELEMENTS : on ne notifie pas ce que j'ai moi-meme cree =====
+function _lireMes(){try{return JSON.parse(localStorage.getItem('alertcitoyen_mes_ids')||'[]');}catch(e){return [];}}
+function marquerMien(cle){
+  if(cle===null||cle===undefined||cle==='')return;
+  try{const l=_lireMes();const k=String(cle);if(!l.includes(k)){l.push(k);localStorage.setItem('alertcitoyen_mes_ids',JSON.stringify(l.slice(-300)));}}catch(e){}
+}
+function estMien(id,ts){
+  const l=_lireMes();
+  return !!((id&&l.includes(String(id)))||(ts&&l.includes('ts:'+ts)));
+}
+
 // ===== NOTIFICATION SYSTEME (compatible Android : passe par le service worker) =====
 function notifSysteme(titre,opts){
   try{
@@ -709,8 +721,8 @@ function majPointNotifAccueil(){
     marquerAccueilVu();
     return;
   }
-  const nbAlertes=(typeof alertesOfficielles!=='undefined'?alertesOfficielles:[]).filter(a=>(a.timestamp||0)>vuAlertesTs).length;
-  const nbAvis=(typeof avisRecherche!=='undefined'?avisRecherche:[]).filter(a=>(a.timestamp||0)>vuAvisTs).length;
+  const nbAlertes=(typeof alertesOfficielles!=='undefined'?alertesOfficielles:[]).filter(a=>(a.timestamp||0)>vuAlertesTs&&!estMien(a.id,a.timestamp)).length;
+  const nbAvis=(typeof avisRecherche!=='undefined'?avisRecherche:[]).filter(a=>(a.timestamp||0)>vuAvisTs&&!estMien(a.id,a.timestamp)).length;
   const total=nbAlertes+nbAvis;
   const point=document.getElementById('point-notif-accueil');
   if(point)point.style.display=total>0?'block':'none';
@@ -1053,9 +1065,11 @@ let incidents=[],mesPoints=parseInt(localStorage.getItem('alertcitoyen_points')|
 
 async function sauvegarderFirebase(inc){
   try{
+    marquerMien('ts:'+inc.timestamp);
     const r=await fetch(FIREBASE_URL+'/incidents.json',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(inc)});
     if(!r.ok)return null;
     const data=await r.json();
+    if(data&&data.name)marquerMien(data.name);
     return (data&&data.name)?data.name:null;
   }catch(e){return null;}
 }
@@ -1229,6 +1243,7 @@ async function publierAlerteOfficielle(){
   }
   const alerte={type,message,zone,timestamp:Date.now(),actif:true,lat:coords?coords.lat:null,lng:coords?coords.lng:null};
   try{
+    marquerMien('ts:'+alerte.timestamp);
     const r=await fetch(withAuth(FIREBASE_URL+'/alertes_officielles.json'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(alerte)});
     if(!r.ok){const t=await r.text().catch(()=>'');throw new Error('Firebase a refusé l\'écriture ('+r.status+') '+t);}
     afficherToast('📢 Alerte officielle publiée !','success');
@@ -1292,11 +1307,11 @@ async function chargerAvisRecherche(){
   afficherAvisAdmin();
 }
 function creerCarteAvis(a){
-  return `<div style="min-width:160px;background:#1a1a2e;border:1px solid #8E44AD55;border-radius:14px;padding:12px;margin-right:12px;display:inline-block;vertical-align:top;white-space:normal;">
-    ${a.photo?`<img src="${a.photo}" style="width:100%;height:140px;object-fit:cover;border-radius:10px;margin-bottom:8px;">`:'<div style="width:100%;height:140px;background:#2C2C3E;border-radius:10px;margin-bottom:8px;display:flex;align-items:center;justify-content:center;font-size:36px;">👤</div>'}
+  return `<div style="width:220px;min-width:220px;max-width:220px;box-sizing:border-box;background:#1a1a2e;border:1px solid #8E44AD55;border-radius:14px;padding:12px;margin-right:12px;display:inline-block;vertical-align:top;white-space:normal;overflow-wrap:anywhere;word-break:break-word;">
+    ${a.photo?`<img src="${a.photo}" style="display:block;width:100%;height:140px;object-fit:cover;border-radius:10px;margin-bottom:8px;">`:'<div style="width:100%;height:140px;background:#2C2C3E;border-radius:10px;margin-bottom:8px;display:flex;align-items:center;justify-content:center;font-size:36px;">👤</div>'}
     <div style="font-weight:700;font-size:14px;">${a.nom}</div>
     <div style="font-size:12px;color:#9CA3AF;margin-bottom:6px;">${a.age?a.age+t('ans-suffix'):''}${a.lieu||''}</div>
-    <div style="font-size:12px;color:#ccc;margin-bottom:10px;white-space:normal;word-wrap:break-word;">${a.description||''}</div>
+    <div style="font-size:12px;color:#ccc;margin-bottom:10px;white-space:normal;word-wrap:break-word;overflow-wrap:anywhere;line-height:1.4;">${a.description||''}</div>
     <button onclick="ouvrirModalSignalement('${a.id}')" style="width:100%;background:#8E44AD;color:#fff;border:none;border-radius:8px;padding:8px;font-size:12px;font-weight:700;cursor:pointer;">${t('btn-je-lai-vu')}</button>
   </div>`;
 }
@@ -1383,6 +1398,7 @@ async function publierAvisRecherche(){
   if(!description){afficherToast('Ajoutez une description','error');return;}
   const avis={nom,age,lieu,description,photo:window._avisPhotoData||null,timestamp:Date.now(),actif:true};
   try{
+    marquerMien('ts:'+avis.timestamp);
     const r=await fetch(withAuth(FIREBASE_URL+'/avis_recherche.json'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(avis)});
     if(!r.ok){const t=await r.text().catch(()=>'');throw new Error('Firebase a refusé l\'écriture ('+r.status+') '+t);}
     afficherToast('🔍 Avis de recherche publié !','success');
@@ -1524,6 +1540,7 @@ async function envoyerDemandeRenfort(type,matricule,lieu,message,urgence){
   const position=await obtenirPositionGPS();
   const demande={type,matricule,lieu,message,urgence:urgence||'haute',timestamp:Date.now(),statut:'en_attente',lat:position?position.lat:null,lng:position?position.lng:null};
   try{
+    marquerMien('ts:'+demande.timestamp);
     const r=await fetch(withAgentAuth(FIREBASE_URL+'/demandes_renfort.json'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(demande)});
     if(!r.ok)throw new Error('Firebase a refusé l\'écriture ('+r.status+')');
     afficherToast(position?'🆘 Demande envoyée avec votre position':'🆘 Demande envoyée (position non disponible)','success');
@@ -1715,9 +1732,8 @@ async function soumettre(){
     afficherToast('📶 Sauvegardé hors ligne — envoi automatique au retour', 'success');
   } else {
     sauvegarderFirebase(incident).then((firebaseId)=>{
-      envoyerNotificationLocale(titre,(CAT[categorie]||categorie)+(lieu?' - '+lieu:''));
+      // (plus de notification de sa propre alerte : seules celles des autres sont notifiees)
       // Son + notification pour le propriétaire
-      notifierProprietaire(titre, categorie, lieu);
       // Si la géolocalisation n'avait pas fini à temps (3s), on corrige la position dès qu'elle arrive vraiment
       if(firebaseId && coordFinalPromise){
         coordFinalPromise.then(coordsFinal=>{
@@ -2042,6 +2058,7 @@ function surveillerNouvellesAlertes() {
           const inc = data[id];
           if (inc.timestamp > _dernierTimestamp) {
             _dernierTimestamp = inc.timestamp + 1;
+            if (estMien(id, inc.timestamp)) continue;
             // Nouvelle alerte detectee !
             jouerSonAlerte(inc.urgence);
             afficherToast('🚨 Nouvelle alerte : ' + (inc.titre || 'Incident signalé'), 'error');
@@ -2086,6 +2103,7 @@ function surveillerAlertesEtSignalements() {
           const a = data[id];
           if (a.actif !== false && a.timestamp > _dernierTimestampAlerteOff) {
             _dernierTimestampAlerteOff = a.timestamp + 1;
+            if (estMien(id, a.timestamp)) { chargerAlertesOfficielles(); continue; }
             const ta = TYPES_ALERTE[a.type] || {icon:'📢', key:''};
             const label = ta.key?t(ta.key):'Alerte officielle';
             afficherToast(ta.icon + ' ' + label + ' : ' + a.message.slice(0,60), 'error');
@@ -2139,12 +2157,14 @@ function surveillerAlertesEtSignalements() {
       // Nouvelles demandes de renfort entre agents - notification prioritaire pour tous les agents connectés
       try {
         const r3 = await fetch(withAuth(FIREBASE_URL + '/demandes_renfort.json?orderBy="timestamp"&limitToLast=5'));
+        if (!r3.ok) throw new Error('lecture renfort refusee');
         const data3 = await r3.json();
         if (data3) {
           for (const id of Object.keys(data3)) {
             const d = data3[id];
             if (d.statut !== 'traite' && d.timestamp > _dernierTimestampRenfort) {
               _dernierTimestampRenfort = d.timestamp + 1;
+              if (estMien(id, d.timestamp)) { chargerDemandesRenfort(); continue; }
               const tr = TYPES_RENFORT[d.type] || {icon:'🆘', key:''};
               const label = tr.key?t(tr.key):'Renfort';
               jouerSonAlerte('haute');
