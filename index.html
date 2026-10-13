@@ -686,6 +686,11 @@ ee:{'badge':'Amegbetɔwo ƒe nyagblɔɖi ƒe mɔ̃','hero-titre':'Dé miaƒe','h
 let langActuelle='fr';
 function t(key){return (TRAD[langActuelle]&&TRAD[langActuelle][key])||TRAD.fr[key]||key;}
 
+// ===== RATTRAPAGE : on retient jusqu'ou chaque appareil a deja vu, pour notifier ce qui est arrive hors connexion =====
+function _tsInit(cle){let v=0;try{v=parseInt(localStorage.getItem(cle)||'0');}catch(e){}if(!(v>0)){v=Date.now();try{localStorage.setItem(cle,String(v));}catch(e){}}return v;}
+function _tsSave(cle,v){try{localStorage.setItem(cle,String(v));}catch(e){}}
+function _cles(data){return Object.keys(data).sort((a,b)=>((data[a]&&data[a].timestamp)||0)-((data[b]&&data[b].timestamp)||0));}
+
 // ===== MES PROPRES ELEMENTS : on ne notifie pas ce que j'ai moi-meme cree =====
 function _lireMes(){try{return JSON.parse(localStorage.getItem('alertcitoyen_mes_ids')||'[]');}catch(e){return [];}}
 function marquerMien(cle){
@@ -2046,18 +2051,21 @@ function jouerSonAlerte(urgence) {
 }
 
 // Surveiller Firebase pour nouvelles alertes en temps reel
-let _dernierTimestamp = Date.now();
+let _dernierTimestamp = _tsInit('ac_ts_inc');
 function surveillerNouvellesAlertes() {
-  setInterval(async () => {
+  if (window._survIncidents) return;
+  window._survIncidents = true;
+  const _tickBrut = async () => {
     try {
-      const r = await fetch(FIREBASE_URL + '/incidents.json?orderBy="timestamp"&limitToLast=5');
+      const r = await fetch(FIREBASE_URL + '/incidents.json?orderBy="timestamp"&startAt=' + (_dernierTimestamp + 1) + '&limitToFirst=20');
       const data = await r.json();
       if (data) {
-        const ids = Object.keys(data);
+        const ids = _cles(data);
         for (const id of ids) {
           const inc = data[id];
           if (inc.timestamp > _dernierTimestamp) {
             _dernierTimestamp = inc.timestamp + 1;
+            _tsSave('ac_ts_inc', _dernierTimestamp);
             if (estMien(id, inc.timestamp)) continue;
             // Nouvelle alerte detectee !
             jouerSonAlerte(inc.urgence);
@@ -2074,7 +2082,13 @@ function surveillerNouvellesAlertes() {
         }
       }
     } catch(e) {}
-  }, 8000); // Vérifier toutes les 8 secondes
+  };
+  let _enCours = false;
+  const _tick = async () => { if (_enCours) return; _enCours = true; try { await _tickBrut(); } catch(e) {} finally { _enCours = false; } };
+  _tick();
+  setInterval(_tick, 8000);
+  window.addEventListener('online', _tick);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) _tick(); });
 }
 
 function notifierProprietaire(titre, categorie, lieu, urgence) {
@@ -2090,19 +2104,22 @@ function notifierProprietaire(titre, categorie, lieu, urgence) {
 }
 
 // ===== SURVEILLANCE ALERTES OFFICIELLES + SIGNALEMENTS CITOYENS =====
-let _dernierTimestampAlerteOff = Date.now();
-let _dernierTimestampRenfort = Date.now();
+let _dernierTimestampAlerteOff = _tsInit('ac_ts_off');
+let _dernierTimestampRenfort = _tsInit('ac_ts_ren');
 function surveillerAlertesEtSignalements() {
-  setInterval(async () => {
+  if (window._survAlertes) return;
+  window._survAlertes = true;
+  const _tickBrut = async () => {
     // Nouvelles alertes officielles - notification pour TOUS les citoyens
     try {
-      const r = await fetch(FIREBASE_URL + '/alertes_officielles.json?orderBy="timestamp"&limitToLast=5');
+      const r = await fetch(FIREBASE_URL + '/alertes_officielles.json?orderBy="timestamp"&startAt=' + (_dernierTimestampAlerteOff + 1) + '&limitToFirst=20');
       const data = await r.json();
       if (data) {
-        for (const id of Object.keys(data)) {
+        for (const id of _cles(data)) {
           const a = data[id];
           if (a.actif !== false && a.timestamp > _dernierTimestampAlerteOff) {
             _dernierTimestampAlerteOff = a.timestamp + 1;
+            _tsSave('ac_ts_off', _dernierTimestampAlerteOff);
             if (estMien(id, a.timestamp)) { chargerAlertesOfficielles(); continue; }
             const ta = TYPES_ALERTE[a.type] || {icon:'📢', key:''};
             const label = ta.key?t(ta.key):'Alerte officielle';
@@ -2156,14 +2173,15 @@ function surveillerAlertesEtSignalements() {
 
       // Nouvelles demandes de renfort entre agents - notification prioritaire pour tous les agents connectés
       try {
-        const r3 = await fetch(withAuth(FIREBASE_URL + '/demandes_renfort.json?orderBy="timestamp"&limitToLast=5'));
+        const r3 = await fetch(withAuth(FIREBASE_URL + '/demandes_renfort.json?orderBy="timestamp"&startAt=' + (_dernierTimestampRenfort + 1) + '&limitToFirst=20'));
         if (!r3.ok) throw new Error('lecture renfort refusee');
         const data3 = await r3.json();
         if (data3) {
-          for (const id of Object.keys(data3)) {
+          for (const id of _cles(data3)) {
             const d = data3[id];
             if (d.statut !== 'traite' && d.timestamp > _dernierTimestampRenfort) {
               _dernierTimestampRenfort = d.timestamp + 1;
+              _tsSave('ac_ts_ren', _dernierTimestampRenfort);
               if (estMien(id, d.timestamp)) { chargerDemandesRenfort(); continue; }
               const tr = TYPES_RENFORT[d.type] || {icon:'🆘', key:''};
               const label = tr.key?t(tr.key):'Renfort';
@@ -2182,7 +2200,13 @@ function surveillerAlertesEtSignalements() {
         }
       } catch(e) {}
     }
-  }, 8000);
+  };
+  let _enCours = false;
+  const _tick = async () => { if (_enCours) return; _enCours = true; try { await _tickBrut(); } catch(e) {} finally { _enCours = false; } };
+  _tick();
+  setInterval(_tick, 8000);
+  window.addEventListener('online', _tick);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) _tick(); });
 }
 
 // ===== HORS LIGNE CORRIGE (IndexedDB) =====
@@ -2724,21 +2748,11 @@ function rechercherAlerte() {
 verifierConnexion();
 verifierNotifications();
 chargerIncidents();
-// Demarrer surveillance automatique des nouvelles alertes
-if (typeof Notification !== 'undefined') {
-  if (Notification.permission === 'granted') {
-    surveillerNouvellesAlertes();
-    surveillerAlertesEtSignalements();
-  } else {
-    Notification.requestPermission().then(p => {
-      if (p === 'granted') {
-        surveillerNouvellesAlertes();
-        surveillerAlertesEtSignalements();
-      }
-    });
-  }
-} else {
-  surveillerAlertesEtSignalements();
+// Demarrer surveillance automatique des nouvelles alertes (toujours : la notification systeme n'est envoyee que si la permission est accordee)
+surveillerNouvellesAlertes();
+surveillerAlertesEtSignalements();
+if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
+  try { Notification.requestPermission().catch(()=>{}); } catch(e) {}
 }
 </script>
 </body>
