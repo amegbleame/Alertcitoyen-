@@ -685,6 +685,20 @@ ee:{'badge':'Amegbetɔwo ƒe nyagblɔɖi ƒe mɔ̃','hero-titre':'Dé miaƒe','h
 let langActuelle='fr';
 function t(key){return (TRAD[langActuelle]&&TRAD[langActuelle][key])||TRAD.fr[key]||key;}
 
+// ===== NOTIFICATION SYSTEME (compatible Android : passe par le service worker) =====
+function notifSysteme(titre,opts){
+  try{
+    if(typeof Notification==='undefined'||Notification.permission!=='granted')return;
+    const secours=()=>{try{new Notification(titre,opts||{});}catch(e){}};
+    if('serviceWorker' in navigator){
+      navigator.serviceWorker.getRegistration().then(reg=>{
+        if(reg&&reg.showNotification){reg.showNotification(titre,opts||{}).catch(secours);}
+        else{secours();}
+      }).catch(secours);
+    }else{secours();}
+  }catch(e){}
+}
+
 // ===== POINT DE NOTIFICATION (comme WhatsApp/Facebook) + BADGE SUR L'ICONE DE L'APP =====
 function majPointNotifAccueil(){
   const vuAlertesTs=parseInt(localStorage.getItem('vuAlertesTs')||'0');
@@ -982,7 +996,7 @@ function activerNotifications(){
 
 function envoyerNotificationLocale(titre, corps){
   if('Notification' in window && Notification.permission==='granted'){
-    new Notification('🚨 AlertCitoyen — '+titre,{body:corps,icon:'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" rx="20" fill="%23C0392B"/><text y=".9em" font-size="80" x="10">🛡️</text></svg>'});
+    notifSysteme('🚨 AlertCitoyen — '+titre,{body:corps,icon:'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" rx="20" fill="%23C0392B"/><text y=".9em" font-size="80" x="10">🛡️</text></svg>'});
   }
 }
 
@@ -2032,7 +2046,7 @@ function surveillerNouvellesAlertes() {
             jouerSonAlerte(inc.urgence);
             afficherToast('🚨 Nouvelle alerte : ' + (inc.titre || 'Incident signalé'), 'error');
             if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-              new Notification('🚨 AlertCitoyen — Nouvelle alerte ' + (inc.urgence === 'haute' ? '🔴 URGENTE' : inc.urgence === 'moyenne' ? '🟠 Moyenne' : '🟡 Basse'), {
+              notifSysteme('🚨 AlertCitoyen — Nouvelle alerte ' + (inc.urgence === 'haute' ? '🔴 URGENTE' : inc.urgence === 'moyenne' ? '🟠 Moyenne' : '🟡 Basse'), {
                 body: (inc.titre || '') + (inc.lieu ? ' — 📍 ' + inc.lieu : '') + ' | ' + (inc.categorie || ''),
                 icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" rx="20" fill="%23C0392B"/><text y=".9em" font-size="80" x="10">🛡️</text></svg>',
                 vibrate: inc.urgence === 'haute' ? [300, 100, 300, 100, 300] : [200, 100, 200],
@@ -2049,7 +2063,7 @@ function surveillerNouvellesAlertes() {
 function notifierProprietaire(titre, categorie, lieu, urgence) {
   jouerSonAlerte(urgence || 'moyenne');
   if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-    new Notification('🚨 Nouvelle alerte — AlertCitoyen', {
+    notifSysteme('🚨 Nouvelle alerte — AlertCitoyen', {
       body: titre + (lieu ? ' — ' + lieu : '') + ' (' + (categorie || '') + ')',
       icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" rx="20" fill="%23C0392B"/><text y=".9em" font-size="80" x="10">🛡️</text></svg>',
       vibrate: [200, 100, 200],
@@ -2078,7 +2092,7 @@ function surveillerAlertesEtSignalements() {
             if (notifsCitoyenActivees()) {
               jouerSonAlerte('haute');
               if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-                new Notification('📢 AlertCitoyen — ' + label, {
+                notifSysteme('📢 AlertCitoyen — ' + label, {
                   body: a.message + (a.zone ? ' — 📍 ' + a.zone : ''),
                   vibrate: [300, 100, 300],
                   requireInteraction: true
@@ -2106,7 +2120,7 @@ function surveillerAlertesEtSignalements() {
               if (!s.notifie) {
                 if (backfillFait) {
                   if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-                    new Notification('👁 AlertCitoyen — Nouveau signalement', {
+                    notifSysteme('👁 AlertCitoyen — Nouveau signalement', {
                       body: 'Un citoyen a signalé avoir vu une personne recherchée.',
                       silent: true
                     });
@@ -2136,7 +2150,7 @@ function surveillerAlertesEtSignalements() {
               jouerSonAlerte('haute');
               afficherToast('🆘 ' + t('renfort-titre').replace('🆘 ','') + ' (' + (d.matricule||'?') + ') : ' + label + (d.lieu ? ' — 📍 ' + d.lieu : ''), 'error');
               if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-                new Notification('🆘 AlertCitoyen — ' + t('renfort-titre').replace('🆘 ',''), {
+                notifSysteme('🆘 AlertCitoyen — ' + t('renfort-titre').replace('🆘 ',''), {
                   body: tr.icon + ' ' + label + ' — 🪪 ' + (d.matricule||'?') + (d.lieu ? ' — 📍 ' + d.lieu : ''),
                   vibrate: [300, 100, 300, 100, 300],
                   requireInteraction: true
