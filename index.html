@@ -1124,6 +1124,7 @@ let incidents=[],mesPoints=parseInt(localStorage.getItem('alertcitoyen_points')|
 async function sauvegarderFirebase(inc){
   try{
     marquerMien('ts:'+inc.timestamp);
+    await _localiserIncident(inc);
     const r=await fetch(FIREBASE_URL+'/incidents.json',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(inc)});
     if(!r.ok)return null;
     const data=await r.json();
@@ -1289,17 +1290,7 @@ async function publierAlerteOfficielle(){
   const zone=document.getElementById('alerte-zone').value.trim();
   if(!type){afficherToast('Choisissez un type d\'alerte','error');return;}
   if(!message){afficherToast('Ecrivez un message','error');return;}
-  // Géolocalisation de la zone concernée (timeout 3s pour ne pas bloquer, continue en arrière-plan)
-  let coords=null;
-  let coordFinalPromise=null;
-  if(zone){
-    try{
-      coordFinalPromise=obtenirCoordonnees(zone);
-      const timeout=new Promise(resolve=>setTimeout(()=>resolve(null),3000));
-      coords=await Promise.race([coordFinalPromise,timeout]);
-    }catch(e){}
-  }
-  const alerte={type,message,zone,timestamp:Date.now(),actif:true,lat:coords?coords.lat:null,lng:coords?coords.lng:null};
+  const alerte={type,message,zone,timestamp:Date.now(),actif:true};
   try{
     marquerMien('ts:'+alerte.timestamp);
     const r=await fetch(withAuth(FIREBASE_URL+'/alertes_officielles.json'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(alerte)});
@@ -1309,18 +1300,6 @@ async function publierAlerteOfficielle(){
     document.getElementById('alerte-message').value='';
     document.getElementById('alerte-zone').value='';
     chargerAlertesOfficielles();
-    // Si la géolocalisation n'avait pas fini à temps, on corrige la position dès qu'elle arrive vraiment
-    if(zone&&coordFinalPromise){
-      const data=await r.json().catch(()=>null);
-      const alerteId=data&&data.name?data.name:null;
-      if(alerteId){
-        coordFinalPromise.then(coordsFinal=>{
-          if(coordsFinal&&(coordsFinal.lat!==alerte.lat||coordsFinal.lng!==alerte.lng)){
-            fetch(withAuth(FIREBASE_URL+'/alertes_officielles/'+alerteId+'.json'),{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({lat:coordsFinal.lat,lng:coordsFinal.lng})}).catch(()=>{});
-          }
-        }).catch(()=>{});
-      }
-    }
   }catch(e){console.error('Erreur publication alerte officielle:',e);afficherToast('Erreur de publication — voir la console','error');}
 }
 async function retirerAlerteOfficielle(id){
@@ -1745,18 +1724,17 @@ async function soumettre(){
   const incident={categorie,titre,lieu,description,urgence,timestamp:Date.now(),anonyme:modeSignalement==='anonyme',telephone:modeSignalement==='identifie'?telephone:null,lat:6.1375,lng:1.2123,valide:false,archive:false,photo:window._photoData||null,statut:'nouveau',codeAlerte,empreinte};
 
   // Récupérer coordonnées rapidement (timeout 3 secondes max pour ne pas bloquer l'envoi)
-  let coords = {lat:6.1375, lng:1.2123};
-  let coordFinalPromise = null;
-  if(lieu) {
+  // Localisation du lieu (Togo uniquement). Introuvable : on n'invente pas de point, on le signale aux autorites.
+  incident.lat = null;
+  incident.lng = null;
+  if(lieu && navigator.onLine) {
     try {
-      coordFinalPromise = obtenirCoordonnees(lieu); // continue en arrière-plan même après le timeout
-      const timeout = new Promise(resolve => setTimeout(()=>resolve(null), 3000));
-      const result = await Promise.race([coordFinalPromise, timeout]);
-      if(result) coords = result;
+      const timeout = new Promise(resolve => setTimeout(()=>resolve('timeout'), 3000));
+      const result = await Promise.race([chercherLieuTogo(lieu), timeout]);
+      if(result && result.lat) { incident.lat = result.lat; incident.lng = result.lng; }
+      else if(result === null) { incident.lieuIntrouvable = true; }
     } catch(e) {}
   }
-  incident.lat = coords.lat;
-  incident.lng = coords.lng;
 
   // Ajouter localement IMMEDIATEMENT
   incidents.unshift({id:'local_'+Date.now(),...incident});
@@ -1792,16 +1770,49 @@ async function soumettre(){
     sauvegarderFirebase(incident).then((firebaseId)=>{
       // (plus de notification de sa propre alerte : seules celles des autres sont notifiees)
       // Son + notification pour le propriétaire
-      // Si la géolocalisation n'avait pas fini à temps (3s), on corrige la position dès qu'elle arrive vraiment
-      if(firebaseId && coordFinalPromise){
-        coordFinalPromise.then(coordsFinal=>{
-          if(coordsFinal && (coordsFinal.lat!==incident.lat || coordsFinal.lng!==incident.lng)){
-            fetch(FIREBASE_URL+'/incidents/'+firebaseId+'.json',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({lat:coordsFinal.lat,lng:coordsFinal.lng})}).catch(()=>{});
-          }
-        }).catch(()=>{});
-      }
     });
   }
+}
+
+// ===== LIEU D'UN SIGNALEMENT : recherche limitee au Togo ; si introuvable, aucun point invente =====
+function _coordsParDefaut(la,lo){return Math.abs(la-6.1375)<1e-6&&Math.abs(lo-1.2123)<1e-6;}
+function coordsValides(inc){return !!(inc&&inc.lat&&inc.lng&&!_coordsParDefaut(inc.lat,inc.lng));}
+function badgeLieu(inc){
+  if(!inc||!inc.lieu) return '';
+  const style='background:rgba(230,126,34,0.15);border:1px solid #E67E22;color:#F5B041;border-radius:8px;padding:6px 10px;font-size:12px;margin-bottom:8px;';
+  if(inc.lieuIntrouvable) return '<div style="'+style+'">\u26A0\uFE0F Lieu introuvable sur la carte : a verifier aupres du citoyen</div>';
+  if(!coordsValides(inc)) return '<div style="'+style+'">\uD83D\uDCCD Lieu non localise sur la carte</div>';
+  return '';
+}
+// Renvoie {lat,lng} si le lieu existe au Togo, null s'il est introuvable, et leve une erreur si la recherche n'a pas pu se faire (reseau, limite de requetes)
+async function chercherLieuTogo(lieu){
+  const texte=String(lieu||'').replace(/\s+/g,' ').trim();
+  if(!texte) return null;
+  const dansTogo=(la,lo)=>la>=5.9&&la<=11.3&&lo>=-0.3&&lo<=1.95;
+  const requete=async(q)=>{
+    const r=await fetch('https://nominatim.openstreetmap.org/search?q='+encodeURIComponent(q)+'&format=json&limit=5&countrycodes=tg');
+    if(!r.ok) throw new Error('recherche indisponible');
+    const d=await r.json();
+    for(const x of (d||[])){const la=parseFloat(x.lat),lo=parseFloat(x.lon);if(dansTogo(la,lo))return{lat:la,lng:lo};}
+    return null;
+  };
+  const variantes=[texte];
+  if(!/togo/i.test(texte)) variantes.push(texte+', Togo');
+  const res=await Promise.allSettled(variantes.map(requete));
+  for(const r of res){ if(r.status==='fulfilled'&&r.value) return r.value; }
+  if(res.some(r=>r.status==='rejected')) throw new Error('recherche incomplete');
+  return null;
+}
+async function _localiserIncident(inc){
+  try{
+    const l=(inc.lieu||'').trim();
+    if(!l||inc.lieuIntrouvable) return;
+    if(coordsValides(inc)) return;
+    const timeout=new Promise(res=>setTimeout(()=>res('timeout'),6000));
+    const r=await Promise.race([chercherLieuTogo(l),timeout]);
+    if(r&&r.lat){inc.lat=r.lat;inc.lng=r.lng;delete inc.lieuIntrouvable;}
+    else if(r===null){inc.lat=null;inc.lng=null;inc.lieuIntrouvable=true;}
+  }catch(e){}
 }
 
 async function obtenirCoordonnees(lieu){
@@ -1877,20 +1888,13 @@ async function chargerAdmin(){
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap'}).addTo(carteInstance);
   const marqueurs=[];
   incidents.forEach(inc=>{
-    if(!inc.lat||!inc.lng)return;
+    if(!coordsValides(inc))return;
     const c=C[inc.urgence]||'#E67E22';
     const m=L.circleMarker([inc.lat,inc.lng],{radius:inc.urgence==='haute'?14:inc.urgence==='moyenne'?10:7,fillColor:c,color:'#fff',weight:2,opacity:1,fillOpacity:0.8}).addTo(carteInstance);
     m.bindPopup(`<b>${inc.titre}</b><br>${inc.categorie}${inc.lieu?'<br>📍 '+inc.lieu:''}<br>${calculerTemps(inc.timestamp)}`);
     marqueurs.push([inc.lat,inc.lng]);
   });
-  // Marqueurs des alertes officielles (météo, accident, incendie, disparition, danger)
-  alertesOfficielles.forEach(a=>{
-    if(!a.lat||!a.lng)return;
-    const ta=TYPES_ALERTE[a.type]||{icon:'📢',color:'#C0392B'};
-    const m=L.circleMarker([a.lat,a.lng],{radius:12,fillColor:ta.color,color:'#fff',weight:2,opacity:1,fillOpacity:0.85}).addTo(carteInstance);
-    m.bindPopup(`${ta.icon} <b>${a.zone||'Alerte officielle'}</b><br>${a.message}<br>${calculerTemps(a.timestamp)}`);
-    marqueurs.push([a.lat,a.lng]);
-  });
+  // (les lieux des alertes officielles ne sont volontairement pas affiches sur la carte)
   // Marqueurs des signalements citoyens "Je l'ai vu(e)" sur les avis de recherche
   avisRecherche.forEach(a=>{
     if(!a.signalements)return;
@@ -1939,7 +1943,7 @@ function renderAdminCards(listeIncidents) {
       +'<span style="font-size:10px;background:'+c+';color:white;padding:3px 10px;border-radius:20px;font-weight:700;">'+urgenceLabel+'</span>'+badgeNouveau+' '+statutBadge
       +'</div>'
       +'<div style="font-size:15px;font-weight:600;color:#F9FAFB;margin-bottom:6px;line-height:1.3;">'+inc.titre+'</div>'
-      +(inc.lieu?'<div style="font-size:12px;color:#9CA3AF;margin-bottom:6px;">📍 '+inc.lieu+'</div>':'')
+      +(inc.lieu?'<div style="font-size:12px;color:#9CA3AF;margin-bottom:6px;">📍 '+inc.lieu+'</div>':'')+badgeLieu(inc)
       +'<div style="font-size:13px;color:#D1D5DB;line-height:1.5;margin-bottom:8px;">'+inc.description+'</div>'
       +tel+emp+photo
       +'<div style="font-size:11px;color:#6B7280;margin-bottom:12px;">⏱ '+calculerTemps(inc.timestamp)+' • '+(inc.anonyme?'🔒 Anonyme':'📞 Identifié')
@@ -1992,7 +1996,7 @@ async function chargerArchives(){
       +'<span style="font-size:10px;background:rgba(107,114,128,0.2);color:#9CA3AF;padding:3px 8px;border-radius:20px;font-weight:700;">🗂 ARCHIVÉ</span>'
       +'</div>'
       +'<div style="font-size:15px;font-weight:600;margin-bottom:6px;">'+inc.titre+'</div>'
-      +(inc.lieu?'<div style="font-size:12px;color:#9CA3AF;margin-bottom:6px;">📍 '+inc.lieu+'</div>':'')
+      +(inc.lieu?'<div style="font-size:12px;color:#9CA3AF;margin-bottom:6px;">📍 '+inc.lieu+'</div>':'')+badgeLieu(inc)
       +'<div style="font-size:13px;color:#D1D5DB;line-height:1.5;margin-bottom:8px;">'+inc.description+'</div>'
       +tel+emp
       +'<div style="font-size:11px;color:#6B7280;margin-bottom:12px;">⏱ '+calculerTemps(inc.timestamp)+' • '+(inc.valide?'✅ Validé':'Non validé')+' • '+(inc.anonyme?'🔒 Anonyme':'📞 Identifié')+'</div>'
