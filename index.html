@@ -1774,7 +1774,7 @@ async function soumettre(){
   }
 }
 
-// ===== LIEU D'UN SIGNALEMENT : recherche limitee au Togo ; si introuvable, aucun point invente =====
+// ===== LIEU D'UN SIGNALEMENT : recherche limitee au Togo et a l'ancien Togo britannique ; si introuvable, aucun point invente =====
 function _coordsParDefaut(la,lo){return Math.abs(la-6.1375)<1e-6&&Math.abs(lo-1.2123)<1e-6;}
 function coordsValides(inc){return !!(inc&&inc.lat&&inc.lng&&!_coordsParDefaut(inc.lat,inc.lng));}
 function badgeLieu(inc){
@@ -1801,6 +1801,20 @@ async function chercherLieuTogo(lieu){
   const res=await Promise.allSettled(variantes.map(requete));
   for(const r of res){ if(r.status==='fulfilled'&&r.value) return r.value; }
   if(res.some(r=>r.status==='rejected')) throw new Error('recherche incomplete');
+  // 2e etape : ancien Togo britannique (aujourd'hui au Ghana : region de la Volta, region de l'Oti et nord-est)
+  const nettoye=texte.replace(/togo\s*britannique|british\s*togoland|togoland|togo/ig,' ').replace(/\s+/g,' ').replace(/^[\s,;:-]+|[\s,;:-]+$/g,'').trim();
+  if(!nettoye) return null;
+  const dansTogoBritannique=(x)=>{
+    const la=parseFloat(x.lat),lo=parseFloat(x.lon);
+    if(!(la>=6.0&&la<=11.0&&lo>=-0.7&&lo<=1.2)) return null;
+    const etat=(x.address&&(x.address.state||x.address.region))||'';
+    if(etat&&!/volta|\boti\b|northern|north east|savannah/i.test(etat)) return null;
+    return {lat:la,lng:lo};
+  };
+  const r2=await fetch('https://nominatim.openstreetmap.org/search?q='+encodeURIComponent(nettoye)+'&format=json&limit=5&countrycodes=gh&addressdetails=1&accept-language=en');
+  if(!r2.ok) throw new Error('recherche indisponible');
+  const d2=await r2.json();
+  for(const x of (d2||[])){ const c=dansTogoBritannique(x); if(c) return c; }
   return null;
 }
 async function _localiserIncident(inc){
@@ -2418,40 +2432,59 @@ const KB = [
   { mots: ['bonjour','bonsoir','salut','hello','salam','hey','coucou'], rep: "Bonjour ! Je suis l'assistant securite d'AlertCitoyen. Je peux vous aider sur : comment signaler un incident, les numeros d'urgence, vos droits en tant que citoyen, la securite dans votre quartier, et le fonctionnement de l'application. Que puis-je faire pour vous ?" },
   // MERCI
   { mots: ['merci','thank','shukran','super','bien','bravo','excellent'], rep: "De rien ! AlertCitoyen est la pour vous. N'hesitez pas si vous avez d'autres questions. Ensemble, rendons nos communautes plus sures !" },
+  // ===== ENRICHISSEMENT : application, urgences et securite au Togo =====
+  { mots: ['sert','objectif','but','mission','fonctionnalite','fonctionnalites','propose','permet','a quoi','alertcitoyen'], rep: "AlertCitoyen sert à rapprocher les citoyens et les forces de l'ordre pour mieux protéger la population au Togo.<br>• <b>Signaler</b> un incident (lieu, description, photo facultative), en restant anonyme ou en vous identifiant.<br>• <b>Suivre</b> votre signalement avec un code (ex. ALT-2026-1234) et écrire à la Police.<br>• Recevoir les <b>alertes officielles</b> de la Police et les <b>avis de recherche</b> de personnes disparues.<br>• Gagner des <b>points et badges</b> en étant un citoyen actif.<br>• Utiliser l'application <b>hors connexion</b> : vos signalements partent dès que le réseau revient.<br>Disponible en français, anglais, arabe et éwé." },
+  { mots: ['suivi','suivre','code','statut','message','messages','ecrire','repondre','modifier','conversation','suivre mon signalement','suivi de mon signalement','code de suivi'], rep: "Après l'envoi d'un signalement, vous recevez un code de suivi (ex. ALT-2026-1234). Notez-le : sur la page <b>Suivi</b>, il permet de retrouver votre signalement et d'écrire à la Police.<br>Vous pouvez modifier votre propre message pendant 5 minutes après l'envoi.<br>Ne partagez ce code avec personne : il donne accès à votre conversation." },
+  { mots: ['hors connexion','hors ligne','offline','sans internet','pas de connexion','reseau','wifi','forfait','coupure'], rep: "AlertCitoyen fonctionne aussi sans internet : ouvrez l'application au moins deux fois avec une connexion, puis elle s'ouvre même hors ligne.<br>Un signalement fait hors connexion est enregistré sur votre téléphone et envoyé automatiquement dès que le réseau revient. Les alertes affichées sont celles de votre dernière connexion." },
+  { mots: ['notification','notifications','notifier','notifie','recevoir','alertes recues'], rep: "Pour recevoir les alertes des autres citoyens et de la Police, autorisez les notifications quand l'application le demande (ou dans les réglages du téléphone). Vous ne recevez pas vos propres alertes. Si vous avez raté des alertes sans connexion, elles vous sont signalées dès que le réseau revient." },
+  { mots: ['alerte officielle','alertes officielles','avis','recherche','disparu','disparue','disparition','vu','vue','retrouver'], rep: "<b>Alertes officielles</b> : messages publiés par la Police pour informer la population d'un danger ou d'une situation (accident, danger, météo, incendie, disparition).<br><b>Avis de recherche</b> : personnes disparues, avec photo et description. Si vous pensez l'avoir vue, touchez « Je l'ai vu(e) » et indiquez le lieu et l'heure. Ne l'approchez pas de force ; en cas d'urgence, appelez le 117." },
+  { mots: ['renfort','agent','forces de l ordre','matricule'], rep: "La demande de renfort est réservée aux forces de l'ordre : un agent envoie sa position et la nature de l'urgence, et seules les autorités reçoivent cette alerte. Les citoyens ne la reçoivent pas. Si vous êtes en danger, appelez le 117 (Police) ou le 172 (Gendarmerie)." },
+  { mots: ['togo','togolais','togolaise','lome','numero','numeros','urgence','urgences','police','gendarmerie','pompier','pompiers','117','172','118'], rep: "🇹🇬 <b>Numéros d'urgence au Togo</b><br>• Police secours : <b>117</b><br>• Gendarmerie : <b>172</b><br>• Sapeurs-pompiers : <b>118</b><br><br>En général : la Police intervient surtout en ville (vols, agressions, violences), la Gendarmerie en zone rurale et sur les routes, les Pompiers pour les incendies, les accidents et les secours.<br>Quand vous appelez : dites où vous êtes (quartier, repères), ce qui se passe, s'il y a des blessés ou des armes, et restez en ligne.<br>Ces numéros sont aussi sur la page d'accueil de l'application." },
+  { mots: ['togo','securite','situation','delinquance','criminalite','risque','risques','dangereux','lome','insecurite'], rep: "<b>Sécurité au Togo : l'essentiel</b><br>• <b>Lomé et grandes villes</b> : surtout de la petite délinquance (vols à la tire, arrachage de sacs et de téléphones, vols de motos), plus fréquente près des marchés, des carrefours et la nuit.<br>• <b>Nord (région des Savanes)</b> : zone frontalière exposée aux menaces de groupes armés venus du Sahel ; des mesures exceptionnelles y ont été prises. Renseignez-vous auprès des autorités avant tout déplacement.<br>• <b>Routes</b> : accidents fréquents, surtout la nuit et à moto.<br>• <b>Arnaques</b> : faux messages de mobile money, faux emplois.<br>La situation peut évoluer : suivez les alertes officielles de l'application et les consignes des autorités." },
+  { mots: ['nord','savanes','dapaong','cinkasse','mango','kpendjal','frontiere','sahel','togo','risque','risques','dangereux'], rep: "Dans le nord du Togo (région des Savanes, vers Dapaong, Cinkassé, Mango), près du Burkina Faso, des groupes armés venus du Sahel menacent la sécurité et des mesures d'exception y ont été prises. Évitez les zones frontalières isolées, voyagez de jour, renseignez-vous auprès des autorités locales (préfecture, gendarmerie, armée) avant de partir, et signalez toute présence suspecte (personnes armées, mouvements inhabituels) sur AlertCitoyen ou au 172." },
+  { mots: ['zemidjan','zemi','moto','motos','taxi','conducteur','casque','vitesse','circulation','permis','controle','routier','barrage'], rep: "<b>Sécurité routière</b><br>• À moto-taxi (zémidjan) : portez un casque et refusez de rouler trop vite.<br>• Évitez de rouler de nuit hors des villes : routes mal éclairées, animaux, véhicules sans feux.<br>• Aux contrôles routiers : gardez votre pièce d'identité et les papiers du véhicule, restez calme et poli.<br>• Si on vous demande de l'argent sans justification, notez le lieu, l'heure et le matricule de l'agent, puis signalez-le.<br>• En cas d'accident : appelez le 118." },
+  { mots: ['mobile money','tmoney','t money','flooz','momo','sms','faux message','transfert','pin','code secret','loterie'], rep: "<b>Arnaques par mobile money (T-Money, Flooz…)</b> : ne donnez jamais votre code secret (PIN) ni le code reçu par SMS, même à quelqu'un qui se dit agent de votre opérateur ou de votre banque. Méfiez-vous des faux messages « vous avez reçu de l'argent », des gains de loterie et des faux emplois. Vérifiez toujours votre solde dans votre propre application. Si vous êtes victime, contactez votre opérateur et signalez-le à la Police." },
+  { mots: ['plainte','plaintes','commissariat','brigade','depot de plainte','main courante','temoin'], rep: "Pour porter plainte, rendez-vous au commissariat de police ou à la brigade de gendarmerie la plus proche avec une pièce d'identité, et racontez les faits avec le plus de précisions possible (date, lieu, description, témoins). Demandez un récépissé. Vous pouvez aussi signaler d'abord sur AlertCitoyen. En cas d'abus d'un agent, notez son nom ou son matricule et le lieu, puis saisissez sa hiérarchie." },
+  { mots: ['manifestation','manifestations','greve','rassemblement','foule','gaz','lacrymogene','emeute'], rep: "En cas de manifestation ou de mouvement de foule : restez à distance, évitez le centre de la foule et gardez toujours une sortie dégagée. Si des gaz lacrymogènes sont utilisés : éloignez-vous face au vent, couvrez-vous le nez et la bouche avec un tissu humide, ne vous frottez pas les yeux. Ne vous opposez pas aux forces de l'ordre et respectez les consignes de dispersion. Prévenez un proche. Appelez le 117 ou le 118 si vous êtes en danger ou blessé." },
+  { mots: ['premiers secours','secourir','saignement','hemorragie','brulure','etouffe','etouffement','noyade','noye','malaise','inconscient','arret cardiaque','reanimation','massage'], rep: "<b>Premiers secours (en attendant les pompiers au 118)</b><br>• <b>Saignement</b> : appuyez fort avec un linge propre sur la plaie, sans relâcher.<br>• <b>Brûlure</b> : refroidissez sous l'eau courante pendant 10 minutes, ne percez pas les cloques, ne mettez ni huile ni pommade.<br>• <b>Étouffement</b> : penchez la personne en avant et donnez 5 claques dans le dos ; sinon, comprimez le haut du ventre.<br>• <b>Personne inconsciente qui ne respire pas</b> : appelez le 118 et faites des compressions au centre de la poitrine, environ 100 à 120 par minute.<br>• <b>Noyade</b> : ne vous mettez pas en danger, appelez les secours et sortez la personne de l'eau si possible.<br>Ces conseils ne remplacent pas un professionnel de santé." },
+  { mots: ['inondation','inondations','pluie','pluies','crue','catastrophe','orage','tempete','erosion'], rep: "<b>Inondations (saison des pluies)</b> : ne traversez jamais une route ou un cours d'eau inondé, à pied ou en voiture. Montez en hauteur, coupez l'électricité si l'eau entre chez vous et éloignez-vous des fils électriques et des murs fragiles. Gardez vos papiers et votre téléphone dans un sac étanche. Appelez le 118 en cas de danger et suivez les consignes de la Protection civile et des autorités." },
+  { mots: ['plage','baignade','mer','noyer','courant','courants','vagues','houle','baigner'], rep: "Sur les plages du Togo (golfe de Guinée), la mer peut être très dangereuse : forts courants et vagues, même près du bord. Ne vous baignez pas sur les plages non surveillées, jamais seul ni la nuit, et surveillez toujours les enfants. Si un courant vous emporte, ne luttez pas contre lui : nagez parallèlement à la plage, puis revenez vers le bord. Appelez le 118." },
+  { mots: ['enfant','enfants','bebe','ecole','mineur','rapt','perdu','egare','enfant disparu','mon enfant','ma fille','mon fils'], rep: "<b>Enfant disparu</b> : appelez tout de suite le 117 ou le 172, donnez une description (âge, vêtements, lieu et heure où il a été vu pour la dernière fois) et une photo récente. N'attendez pas. La Police peut publier un avis de recherche dans AlertCitoyen.<br><b>Prévention</b> : apprenez à vos enfants votre numéro et leur adresse, à ne suivre aucun inconnu et à demander de l'aide à un adulte de confiance." },
+  { mots: ['togo britannique','british togoland','togoland','volta','ho','hohoe','kpando','oti'], rep: "La carte d'AlertCitoyen reconnaît aussi les lieux de l'ancien Togo britannique (aujourd'hui dans la région de la Volta, la région de l'Oti et le nord-est du Ghana). Si vous êtes de ce côté de la frontière, les numéros d'urgence sont ceux du Ghana : Police 191, Pompiers 192, Ambulance 193, Urgences 112." },
+  { mots: ['installer','installation','mise a jour','probleme','bug','erreur','ouvre pas','marche pas'], rep: "Pour installer AlertCitoyen : ouvrez l'application dans Chrome, puis menu ⋮ → « Installer l'application ». Pour la mettre à jour, ouvrez-la deux fois avec internet. Si un problème persiste, vérifiez votre connexion, fermez complètement l'application puis rouvrez-la." },
 ];
 
-function repondreLocal(question) {
-  const q = question.toLowerCase()
-    .replace(/[àáâãäå]/g,'a').replace(/[èéêë]/g,'e').replace(/[ìíîï]/g,'i')
-    .replace(/[òóôõö]/g,'o').replace(/[ùúûü]/g,'u').replace(/[ç]/g,'c')
-    .replace(/[ñ]/g,'n');
-  let meilleureRep = null;
-  let meilleurScore = 0;
-  for (const entry of KB) {
-    let score = 0;
-    for (const mot of entry.mots) {
-      if (q.includes(mot)) score++;
-    }
-    if (score > meilleurScore) {
-      meilleurScore = score;
-      meilleureRep = entry.rep;
-    }
-  }
-  if (meilleureRep && meilleurScore > 0) return meilleureRep;
-  return "Je n'ai pas bien compris votre question. Je peux vous aider sur : comment signaler un incident, les numeros d'urgence, l'anonymat, vos droits de citoyen, le systeme de points et badges, ou la presentation de l'application. Posez votre question differemment !";
+function _normaliserTexte(t){
+  return String(t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[\u2019'`]/g,' ').replace(/\u0153/g,'oe');
 }
-
+// Poids des mots-cles : une expression ou un nom de pays compte plus qu'un mot courant
+const _PAYS_KB=['ghana','benin','nigeria','senegal','mali','burkina','niger','cote','ivoire','guinee','sierra','leone','liberia','gambie','gambia','cameroun','gabon','congo'];
+const _MOTS_COURANTS_KB=['comment','pour','quoi','faire','alerte','envoyer','bien','seul','point','argent','route','voiture','marche','app','application','alert','sert','permet','propose','danger','aide','help','appel'];
+function _poidsMot(m){
+  const nb=m.split(' ').length;
+  if(nb>1) return 2*nb;
+  if(_PAYS_KB.includes(m)) return 5;
+  if(_MOTS_COURANTS_KB.includes(m)) return 0.3;
+  return 1;
+}
 function repondreLocal(question) {
-  const q = question.toLowerCase()
-    .replace(/[àáâãäå]/g,'a').replace(/[èéêë]/g,'e').replace(/[ìíîï]/g,'i')
-    .replace(/[òóôõö]/g,'o').replace(/[ùúûü]/g,'u').replace(/[ç]/g,'c')
-    .replace(/[ñ]/g,'n');
+  const q = ' ' + _normaliserTexte(question).replace(/[^a-z0-9]+/g,' ').trim() + ' ';
+  const mots = q.trim().split(' ').filter(Boolean);
   let meilleureRep = null;
   let meilleurScore = 0;
   for (const entry of KB) {
     let score = 0;
-    for (const mot of entry.mots) {
-      if (q.includes(mot)) score++;
+    for (const m0 of entry.mots) {
+      const m = _normaliserTexte(m0).replace(/[^a-z0-9]+/g,' ').trim();
+      if (!m) continue;
+      let trouve;
+      if (m.length <= 4 && m.indexOf(' ') < 0) {
+        // mots courts : mot entier (ou son pluriel), pour ne pas confondre 'or' avec 'information'
+        trouve = mots.includes(m) || mots.includes(m + 's');
+      } else {
+        trouve = q.includes(' ' + m); // debut de mot : 'pompier' trouve aussi 'pompiers'
+      }
+      if (trouve) score += _poidsMot(m) + m.length * 0.001;
     }
     if (score > meilleurScore) {
       meilleurScore = score;
@@ -2459,7 +2492,7 @@ function repondreLocal(question) {
     }
   }
   if (meilleureRep && meilleurScore > 0) return meilleureRep;
-  return "Je n'ai pas bien compris votre question. Je peux vous aider sur : comment signaler un incident, les numeros d'urgence CEDEAO, l'anonymat et confidentialite, vos droits de citoyen, le systeme de points et badges, ou la couverture dans les 16 pays CEDEAO. Posez votre question differemment !";
+  return "Je n'ai pas bien compris votre question. Je peux vous aider sur : <b>les numéros d'urgence au Togo</b>, la sécurité au Togo (villes, routes, nord du pays), comment signaler un incident, le suivi de votre signalement, les alertes officielles et avis de recherche, le mode hors connexion, les premiers secours, vos droits et le fonctionnement de l'application.";
 }
 
 async function envoyerChat() {
