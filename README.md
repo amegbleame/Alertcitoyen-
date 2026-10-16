@@ -1,2 +1,2 @@
 # Alertcitoyen-
-"Application d'alerte citoyenne pour la sécurité publique au Togo
+"Application d'alerte citoyenne pour la sécurité publique au Togol
