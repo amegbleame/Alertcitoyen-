@@ -100,9 +100,17 @@ async function creerIncident(db, c, ip, req) {
       heure: new Date().toISOString()
     }
   };
-  const ref = db.ref('incidents').push();
-  await ref.set(incident);
-  return { id: ref.key };
+  // Identifiant fixe calcule depuis le code de suivi et l'heure du telephone : si le meme signalement est
+  // renvoye (reseau coupe au mauvais moment), il n'est pas cree deux fois.
+  const ts = nombre(c.timestamp);
+  if (ts === null) {
+    const ref = db.ref('incidents').push();
+    await ref.set(incident);
+    return { id: ref.key };
+  }
+  const cle = 'i' + crypto.createHash('sha1').update(code + '|' + ts).digest('hex').slice(0, 19);
+  await db.ref('incidents/' + cle).transaction((existant) => (existant === null ? incident : undefined));
+  return { id: cle };
 }
 
 // ----- Messages citoyen <-> police -----
