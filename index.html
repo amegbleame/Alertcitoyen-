@@ -263,7 +263,7 @@ html,body{touch-action:pan-x pan-y;}
   <div class="stats">
     <div class="stat"><div class="stat-num" id="stat-total">0</div><div class="stat-label" data-t="stat-signalements">Signalements</div></div>
     <div class="stat"><div class="stat-num" id="stat-urgents">0</div><div class="stat-label" data-t="stat-urgents">Urgents</div></div>
-    <div class="stat"><div class="stat-num">100%</div><div class="stat-label" data-t="stat-anonyme">Anonyme</div></div>
+    <div class="stat"><div class="stat-num">🔒</div><div class="stat-label" data-t="stat-anonyme">Sans identité</div></div>
   </div>
 
   <div class="section" id="alertes-officielles-section" style="display:none;padding-top:20px;">
@@ -304,7 +304,7 @@ html,body{touch-action:pan-x pan-y;}
         <button class="id-btn active" id="btn-anonyme" onclick="setMode('anonyme')" data-t="anonyme">🔒 Anonyme</button>
         <button class="id-btn" id="btn-identifie" onclick="setMode('identifie')" data-t="identifier">📞 M'identifier</button>
       </div>
-      <div class="mode-badge" id="mode-badge" style="background:rgba(39,174,96,0.1);border:1px solid rgba(39,174,96,0.3);color:#27AE60;">🔒 <span data-t="badge-anonyme">Signalement 100% anonyme</span></div>
+      <div class="mode-badge" id="mode-badge" style="background:rgba(39,174,96,0.1);border:1px solid rgba(39,174,96,0.3);color:#27AE60;">🔒 <span data-t="badge-anonyme">Signalement sans identité</span></div>
       <div class="phone-field" id="phone-field">
         <label class="form-label" data-t="tel-label">Votre numéro</label>
         <input class="form-input" id="telephone" type="tel" placeholder="+228 XX XX XX XX">
@@ -413,6 +413,7 @@ html,body{touch-action:pan-x pan-y;}
         <li data-t="conf-s2-l2">Une photo et une description, pour un avis de recherche publié par la Police</li>
         <li data-t="conf-s2-l3">Le lieu, la date et le numéro de téléphone d'un témoin signalant avoir vu une personne recherchée</li>
         <li data-t="conf-s2-l4">Le matricule et la position GPS d'un agent effectuant une demande de renfort</li>
+<li data-t="conf-s2-l5">Des informations techniques enregistrées avec chaque signalement : adresse IP, type d'appareil, langue, fuseau horaire et taille d'écran, afin de limiter les fausses alertes</li>
       </ul>
     </div>
 
@@ -679,12 +680,54 @@ html,body{touch-action:pan-x pan-y;}
 
 <script>
 // ===== TRADUCTIONS =====
-const TRAD={fr:{'badge':'Réseau d\'Alerte Citoyenne','hero-titre':'Protégez votre','hero-titre2':'communauté','hero-desc':'Signalez anonymement tout acte suspect, crime ou urgence. Ensemble, nous rendons nos quartiers plus sûrs.','btn-signaler':'⚠ Signaler','btn-signaler-hero':'🚨 Signaler une urgence','btn-dashboard':'📊 Voir le tableau de bord','urgence-titre':'Urgence ? Appelez maintenant','police':'Police','gendarmerie':'Gendarmerie','urgences':'Urgences','install-titre':'Installer AlertCitoyen','install-desc':'Ajoutez l\'app sur votre écran d\'accueil pour recevoir les alertes','install-btn':'Installer','notif-desc':'Activez les notifications pour être alerté des incidents près de vous','notif-btn':'Activer','stat-signalements':'Signalements','stat-urgents':'Urgents','stat-anonyme':'Anonyme','incidents-recents':'Incidents récents','dans-communaute':'Dans votre communauté','aucun-incident':'Aucun incident signalé.','retour':'Retour','signaler-titre':'Signaler un incident','signaler-desc':'Fournissez les détails pour alerter les autorités.','mode-label':'Mode de signalement','anonyme':'🔒 Anonyme','identifier':'📞 M\'identifier','badge-anonyme':'Signalement 100% anonyme','tel-label':'Votre numéro','tel-note':'⚠️ Visible uniquement par les autorités','nature-label':'Nature de l\'incident *','select-categorie':'Sélectionnez une catégorie','titre-label':'Titre court *','lieu-label':'Lieu (optionnel)','desc-label':'Description détaillée *','photo-label':'Photo (optionnel)','photo-desc':'Appuyez pour prendre une photo','ia-titre':'Analyse IA','btn-envoyer':'🚨 Envoyer le signalement','succes-titre':'Signalement envoyé !','succes-desc':'Votre alerte a été transmise aux autorités.','points-gagnes':'Points gagnés','points-bonus':'Validé par autorités = +40 pts bonus!','retour-accueil':'Retour à l\'accueil','suivi-titre':'🔍 Suivi de mon alerte','suivi-desc':'Entrez votre code de suivi pour voir le statut de votre signalement','suivi-btn':'Chercher','suivi-nav':'Suivi','tableau-bord':'Tableau de bord','tous-signalements':'Tous les signalements','f-tous':'Tous','mes-recompenses':'Mes récompenses','recompenses-desc':'Gagnez des points en signalant des incidents pertinents','niveaux':'Niveaux','admin-titre':'Espace Autorités','admin-desc':'Accès réservé aux forces de l\'ordre','mdp-label':'Mot de passe','btn-acceder':'Accéder','panneau-admin':'Panneau Admin','espace-auto':'Espace autorités','deconnexion':'Déconnexion','carte-incidents':'🗺 Carte des incidents','nav-accueil':'Accueil','nav-signaler':'Signaler','nav-dashboard':'Dashboard','nav-badges':'Badges','nav-admin':'Admin','offline':'📶 Hors ligne. Signalement sauvegardé, envoi automatique au retour.','archiver':'Archiver','archive-ok':'Archivé !'},
-en:{'badge':'Citizen Alert Network','hero-titre':'Protect your','hero-titre2':'community','hero-desc':'Anonymously report any suspicious act, crime or emergency. Together we make our neighborhoods safer.','btn-signaler':'⚠ Report','btn-signaler-hero':'🚨 Report an emergency','btn-dashboard':'📊 View dashboard','urgence-titre':'Emergency? Call now','police':'Police','gendarmerie':'Gendarmerie','urgences':'Emergency','install-titre':'Install AlertCitoyen','install-desc':'Add the app to your home screen to receive alerts','install-btn':'Install','notif-desc':'Enable notifications to be alerted of incidents near you','notif-btn':'Enable','stat-signalements':'Reports','stat-urgents':'Urgent','stat-anonyme':'Anonymous','incidents-recents':'Recent incidents','dans-communaute':'In your community','aucun-incident':'No incidents reported.','retour':'Back','signaler-titre':'Report an incident','signaler-desc':'Provide details to alert authorities.','mode-label':'Reporting mode','anonyme':'🔒 Anonymous','identifier':'📞 Identify myself','badge-anonyme':'100% anonymous report','tel-label':'Your phone number','tel-note':'⚠️ Visible only to authorities','nature-label':'Nature of incident *','select-categorie':'Select a category','titre-label':'Short title *','lieu-label':'Location (optional)','desc-label':'Detailed description *','photo-label':'Photo (optional)','photo-desc':'Tap to take a photo','ia-titre':'AI Analysis','btn-envoyer':'🚨 Send report','succes-titre':'Report sent!','succes-desc':'Your alert has been transmitted to authorities.','points-gagnes':'Points earned','points-bonus':'Validated = +40 bonus pts!','retour-accueil':'Back to home','suivi-titre':'🔍 Track my alert','suivi-desc':'Enter your tracking code to see the status of your report','suivi-btn':'Search','suivi-nav':'Track','tableau-bord':'Dashboard','tous-signalements':'All reports','f-tous':'All','mes-recompenses':'My rewards','recompenses-desc':'Earn points by reporting relevant incidents','niveaux':'Levels','admin-titre':'Authorities Space','admin-desc':'Reserved for law enforcement','mdp-label':'Password','btn-acceder':'Access','panneau-admin':'Admin Panel','espace-auto':'Authorities space','deconnexion':'Logout','carte-incidents':'🗺 Incident Map','nav-accueil':'Home','nav-signaler':'Report','nav-dashboard':'Dashboard','nav-badges':'Badges','nav-admin':'Admin','offline':'📶 Offline. Report saved, will send when connected.','archiver':'Archive','archive-ok':'Archived!'},
-ar:{'badge':'شبكة تنبيه المواطنين','hero-titre':'احمِ','hero-titre2':'مجتمعك','hero-desc':'أبلغ بشكل مجهول عن أي عمل مشبوه أو جريمة أو طوارئ. معاً نجعل أحياءنا أكثر أماناً.','btn-signaler':'⚠ إبلاغ','btn-signaler-hero':'🚨 الإبلاغ عن طوارئ','btn-dashboard':'📊 لوحة التحكم','urgence-titre':'طوارئ؟ اتصل الآن','police':'الشرطة','gendarmerie':'الدرك','urgences':'طوارئ','install-titre':'تثبيت AlertCitoyen','install-desc':'أضف التطبيق لشاشتك الرئيسية لتلقي التنبيهات','install-btn':'تثبيت','notif-desc':'فعّل الإشعارات لتلقي تنبيهات الحوادث القريبة','notif-btn':'تفعيل','stat-signalements':'البلاغات','stat-urgents':'عاجل','stat-anonyme':'مجهول','incidents-recents':'الحوادث الأخيرة','dans-communaute':'في مجتمعك','aucun-incident':'لا توجد حوادث.','retour':'رجوع','signaler-titre':'الإبلاغ عن حادثة','signaler-desc':'قدم التفاصيل لتنبيه السلطات.','mode-label':'وضع الإبلاغ','anonyme':'🔒 مجهول','identifier':'📞 تعريف نفسي','badge-anonyme':'بلاغ مجهول 100%','tel-label':'رقم هاتفك','tel-note':'⚠️ مرئي للسلطات فقط','nature-label':'طبيعة الحادثة *','select-categorie':'اختر فئة','titre-label':'عنوان قصير *','lieu-label':'الموقع (اختياري)','desc-label':'وصف تفصيلي *','photo-label':'صورة (اختياري)','photo-desc':'اضغط لالتقاط صورة','ia-titre':'تحليل الذكاء الاصطناعي','btn-envoyer':'🚨 إرسال البلاغ','succes-titre':'تم إرسال البلاغ!','succes-desc':'تم إرسال تنبيهك للسلطات.','points-gagnes':'النقاط المكتسبة','points-bonus':'مُتحقق = +40 نقطة إضافية!','retour-accueil':'العودة للرئيسية','suivi-titre':'🔍 تتبع تنبيهي','suivi-desc':'أدخل رمز التتبع لمعرفة حالة بلاغك','suivi-btn':'بحث','suivi-nav':'تتبع','tableau-bord':'لوحة التحكم','tous-signalements':'جميع البلاغات','f-tous':'الكل','mes-recompenses':'مكافآتي','recompenses-desc':'اكسب نقاطاً بالإبلاغ عن حوادث مهمة','niveaux':'المستويات','admin-titre':'فضاء السلطات','admin-desc':'وصول مخصص لقوات الأمن','mdp-label':'كلمة المرور','btn-acceder':'دخول','panneau-admin':'لوحة الإدارة','espace-auto':'فضاء السلطات','deconnexion':'خروج','carte-incidents':'🗺 خريطة الحوادث','nav-accueil':'الرئيسية','nav-signaler':'إبلاغ','nav-dashboard':'لوحة','nav-badges':'شارات','nav-admin':'إدارة','offline':'📶 غير متصل. تم حفظ البلاغ وسيُرسل عند الاتصال.','archiver':'أرشفة','archive-ok':'تمت الأرشفة!'},
+const TRAD={fr:{'badge':'Réseau d\'Alerte Citoyenne','hero-titre':'Protégez votre','hero-titre2':'communauté','hero-desc':'Signalez anonymement tout acte suspect, crime ou urgence. Ensemble, nous rendons nos quartiers plus sûrs.','btn-signaler':'⚠ Signaler','btn-signaler-hero':'🚨 Signaler une urgence','btn-dashboard':'📊 Voir le tableau de bord','urgence-titre':'Urgence ? Appelez maintenant','police':'Police','gendarmerie':'Gendarmerie','urgences':'Urgences','install-titre':'Installer AlertCitoyen','install-desc':'Ajoutez l\'app sur votre écran d\'accueil pour recevoir les alertes','install-btn':'Installer','notif-desc':'Activez les notifications pour être alerté des incidents près de vous','notif-btn':'Activer','stat-signalements':'Signalements','stat-urgents':'Urgents','stat-anonyme':'Sans identité','incidents-recents':'Incidents récents','dans-communaute':'Dans votre communauté','aucun-incident':'Aucun incident signalé.','retour':'Retour','signaler-titre':'Signaler un incident','signaler-desc':'Fournissez les détails pour alerter les autorités.','mode-label':'Mode de signalement','anonyme':'🔒 Anonyme','identifier':'📞 M\'identifier','badge-anonyme':'Signalement sans identité','tel-label':'Votre numéro','tel-note':'⚠️ Visible uniquement par les autorités','nature-label':'Nature de l\'incident *','select-categorie':'Sélectionnez une catégorie','titre-label':'Titre court *','lieu-label':'Lieu (optionnel)','desc-label':'Description détaillée *','photo-label':'Photo (optionnel)','photo-desc':'Appuyez pour prendre une photo','ia-titre':'Analyse IA','btn-envoyer':'🚨 Envoyer le signalement','succes-titre':'Signalement envoyé !','succes-desc':'Votre alerte a été transmise aux autorités.','points-gagnes':'Points gagnés','points-bonus':'Validé par autorités = +40 pts bonus!','retour-accueil':'Retour à l\'accueil','suivi-titre':'🔍 Suivi de mon alerte','suivi-desc':'Entrez votre code de suivi pour voir le statut de votre signalement','suivi-btn':'Chercher','suivi-nav':'Suivi','tableau-bord':'Tableau de bord','tous-signalements':'Tous les signalements','f-tous':'Tous','mes-recompenses':'Mes récompenses','recompenses-desc':'Gagnez des points en signalant des incidents pertinents','niveaux':'Niveaux','admin-titre':'Espace Autorités','admin-desc':'Accès réservé aux forces de l\'ordre','mdp-label':'Mot de passe','btn-acceder':'Accéder','panneau-admin':'Panneau Admin','espace-auto':'Espace autorités','deconnexion':'Déconnexion','carte-incidents':'🗺 Carte des incidents','nav-accueil':'Accueil','nav-signaler':'Signaler','nav-dashboard':'Dashboard','nav-badges':'Badges','nav-admin':'Admin','offline':'📶 Hors ligne. Signalement sauvegardé, envoi automatique au retour.','archiver':'Archiver','archive-ok':'Archivé !'},
+en:{'badge':'Citizen Alert Network','hero-titre':'Protect your','hero-titre2':'community','hero-desc':'Anonymously report any suspicious act, crime or emergency. Together we make our neighborhoods safer.','btn-signaler':'⚠ Report','btn-signaler-hero':'🚨 Report an emergency','btn-dashboard':'📊 View dashboard','urgence-titre':'Emergency? Call now','police':'Police','gendarmerie':'Gendarmerie','urgences':'Emergency','install-titre':'Install AlertCitoyen','install-desc':'Add the app to your home screen to receive alerts','install-btn':'Install','notif-desc':'Enable notifications to be alerted of incidents near you','notif-btn':'Enable','stat-signalements':'Reports','stat-urgents':'Urgent','stat-anonyme':'No identity','incidents-recents':'Recent incidents','dans-communaute':'In your community','aucun-incident':'No incidents reported.','retour':'Back','signaler-titre':'Report an incident','signaler-desc':'Provide details to alert authorities.','mode-label':'Reporting mode','anonyme':'🔒 Anonymous','identifier':'📞 Identify myself','badge-anonyme':'Report without identity','tel-label':'Your phone number','tel-note':'⚠️ Visible only to authorities','nature-label':'Nature of incident *','select-categorie':'Select a category','titre-label':'Short title *','lieu-label':'Location (optional)','desc-label':'Detailed description *','photo-label':'Photo (optional)','photo-desc':'Tap to take a photo','ia-titre':'AI Analysis','btn-envoyer':'🚨 Send report','succes-titre':'Report sent!','succes-desc':'Your alert has been transmitted to authorities.','points-gagnes':'Points earned','points-bonus':'Validated = +40 bonus pts!','retour-accueil':'Back to home','suivi-titre':'🔍 Track my alert','suivi-desc':'Enter your tracking code to see the status of your report','suivi-btn':'Search','suivi-nav':'Track','tableau-bord':'Dashboard','tous-signalements':'All reports','f-tous':'All','mes-recompenses':'My rewards','recompenses-desc':'Earn points by reporting relevant incidents','niveaux':'Levels','admin-titre':'Authorities Space','admin-desc':'Reserved for law enforcement','mdp-label':'Password','btn-acceder':'Access','panneau-admin':'Admin Panel','espace-auto':'Authorities space','deconnexion':'Logout','carte-incidents':'🗺 Incident Map','nav-accueil':'Home','nav-signaler':'Report','nav-dashboard':'Dashboard','nav-badges':'Badges','nav-admin':'Admin','offline':'📶 Offline. Report saved, will send when connected.','archiver':'Archive','archive-ok':'Archived!'},
+ar:{'badge':'شبكة تنبيه المواطنين','hero-titre':'احمِ','hero-titre2':'مجتمعك','hero-desc':'أبلغ بشكل مجهول عن أي عمل مشبوه أو جريمة أو طوارئ. معاً نجعل أحياءنا أكثر أماناً.','btn-signaler':'⚠ إبلاغ','btn-signaler-hero':'🚨 الإبلاغ عن طوارئ','btn-dashboard':'📊 لوحة التحكم','urgence-titre':'طوارئ؟ اتصل الآن','police':'الشرطة','gendarmerie':'الدرك','urgences':'طوارئ','install-titre':'تثبيت AlertCitoyen','install-desc':'أضف التطبيق لشاشتك الرئيسية لتلقي التنبيهات','install-btn':'تثبيت','notif-desc':'فعّل الإشعارات لتلقي تنبيهات الحوادث القريبة','notif-btn':'تفعيل','stat-signalements':'البلاغات','stat-urgents':'عاجل','stat-anonyme':'بدون هوية','incidents-recents':'الحوادث الأخيرة','dans-communaute':'في مجتمعك','aucun-incident':'لا توجد حوادث.','retour':'رجوع','signaler-titre':'الإبلاغ عن حادثة','signaler-desc':'قدم التفاصيل لتنبيه السلطات.','mode-label':'وضع الإبلاغ','anonyme':'🔒 مجهول','identifier':'📞 تعريف نفسي','badge-anonyme':'بلاغ بدون هوية','tel-label':'رقم هاتفك','tel-note':'⚠️ مرئي للسلطات فقط','nature-label':'طبيعة الحادثة *','select-categorie':'اختر فئة','titre-label':'عنوان قصير *','lieu-label':'الموقع (اختياري)','desc-label':'وصف تفصيلي *','photo-label':'صورة (اختياري)','photo-desc':'اضغط لالتقاط صورة','ia-titre':'تحليل الذكاء الاصطناعي','btn-envoyer':'🚨 إرسال البلاغ','succes-titre':'تم إرسال البلاغ!','succes-desc':'تم إرسال تنبيهك للسلطات.','points-gagnes':'النقاط المكتسبة','points-bonus':'مُتحقق = +40 نقطة إضافية!','retour-accueil':'العودة للرئيسية','suivi-titre':'🔍 تتبع تنبيهي','suivi-desc':'أدخل رمز التتبع لمعرفة حالة بلاغك','suivi-btn':'بحث','suivi-nav':'تتبع','tableau-bord':'لوحة التحكم','tous-signalements':'جميع البلاغات','f-tous':'الكل','mes-recompenses':'مكافآتي','recompenses-desc':'اكسب نقاطاً بالإبلاغ عن حوادث مهمة','niveaux':'المستويات','admin-titre':'فضاء السلطات','admin-desc':'وصول مخصص لقوات الأمن','mdp-label':'كلمة المرور','btn-acceder':'دخول','panneau-admin':'لوحة الإدارة','espace-auto':'فضاء السلطات','deconnexion':'خروج','carte-incidents':'🗺 خريطة الحوادث','nav-accueil':'الرئيسية','nav-signaler':'إبلاغ','nav-dashboard':'لوحة','nav-badges':'شارات','nav-admin':'إدارة','offline':'📶 غير متصل. تم حفظ البلاغ وسيُرسل عند الاتصال.','archiver':'أرشفة','archive-ok':'تمت الأرشفة!'},
 ee:{'badge':'Amegbetɔwo ƒe nyagblɔɖi ƒe mɔ̃','hero-titre':'Dé miaƒe','hero-titre2':'hame la','hero-desc':'Na nyatakaka ɖe nu vɔ̃ alo gbegblẽ alo xaxa gã ŋu le ŋkɔ maŋlɔ me. Míele ɖekawɔwɔ me, míawɔ míaƒe nutoa dzɔdzɔe kple dedienu.','btn-signaler':'⚠ Na nyatakaka','btn-signaler-hero':'🚨 Na nyatakaka le xaxa gã ŋu','btn-dashboard':'Kpɔ akpata ƒe nyawo','urgence-titre':'Xaxa gãa? Yɔ fifia!','police':'Polisi','gendarmerie':'Gɛndarmeri','urgences':'Dzoɖuɖula','install-titre':'Xɔ AlertCitoyen','install-desc':'Dzra application la ɖe wò fɔnudrɔ̃ ŋu','install-btn':'Xɔ','notif-desc':'Ɖe afi na míana we be nyatakaka yeye le vɛ','notif-btn':'Ɖe afi','stat-signalements':'Nyatakakawo','stat-urgents':'Xaxa gãwo','stat-anonyme':'Mɔ̃ maŋlɔ','incidents-recents':'Nyawo si wòwɔ dɔ le','dans-communaute':'Le miaƒe hame me','aucun-incident':'Nyatakaka aɖeke mele o.','retour':'← Xɔ yi egɔme','signaler-titre':'Na Nyatakaka','signaler-desc':'Ɖe nu vɔ̃ alo xaxa gã sia sia fia mí','mode-label':'Wò nɔnɔme:','anonyme':'Mɔ̃ maŋlɔ','identifier':'Woɖe amenyenye fia','badge-anonyme':'🔒 Mɔ̃ maŋlɔ','tel-label':'Wò fɔnudrɔ̃ ŋuɖoɖo:','tel-note':'Polisi koe anye wòna anɔ egbe','nature-label':'Nu si wòwɔ:','select-categorie':'Tia nu la ƒe se','titre-label':'Nya la ƒe tanya:','lieu-label':'Teƒe:','desc-label':'Nya la ƒe gɔmeɖeɖe:','photo-label':'Foto (mede o):','photo-desc':'Tia foto aɖe ɖe ŋu','ia-titre':'🤖 IA le nya la ƒe xaxea kpɔm...','btn-envoyer':'🚨 Dɔ nyatakaka la ɖa','succes-titre':'Woɖo nyatakaka la ɖa!','succes-desc':'Wodo nyatakaka la na dɔwɔlawo siwo dzra wɔwɔ tso ŋkeke si','points-gagnes':'Tɛtremɛ siwo woɖo','points-bonus':'Polisi ɖe asi le edzi = +40 tɛtremɛ!','retour-accueil':'Trɔ yi Aƒe gã','suivi-titre':'🔍 Kpɔ nye yɔyɔɖi yome','suivi-desc':'Ɖe wò kpɔkpɔ ƒe nambɛ ɖe gbɔ eye née kpɔ wò nyatakaka la ƒe nɔnɔme','suivi-btn':'Di','suivi-nav':'Kpɔkpɔ yome','tableau-bord':'Kpɔ nyatakakaɖoƒe la','tous-signalements':'Nyatakakawo katã','f-tous':'Katã','mes-recompenses':'Nye Dzesiwo','recompenses-desc':'Ɖo tɛtremɛ le nyatakaka siwo wòsɔ ŋu me','niveaux':'Xexeame siwo','admin-titre':'Mɔseƒe','admin-desc':'Ɖe wò nyagbe ɣaɣla ɖe gbɔ','mdp-label':'Nyagbe ɣaɣla:','btn-acceder':'Vu ŋu','panneau-admin':'Dɔwɔla Gã','espace-auto':'Mɔseƒe na Ŋusẽdzikpɔlawo','deconnexion':'Vɔ mɔ','carte-incidents':'Nyawo ƒe anyigbatata','nav-accueil':'Aƒe gã','nav-signaler':'Na nyatakaka','nav-dashboard':'Dɔwɔƒe','nav-badges':'Dzesiwo','nav-admin':'Dɔwɔla Gã','offline':'📶 Mɔ aɖeke mele — Wodzra nyatakaka la ɖe nu, woaɖo eɖa megbe','archiver':'Dzra ɖe nu','archive-ok':'Woɖo dzra ɖe nu!'}};
 let langActuelle='fr';
 function t(key){return (TRAD[langActuelle]&&TRAD[langActuelle][key])||TRAD.fr[key]||key;}
+
+// ===== ENVOI VIA LE SERVEUR (api/envoyer) : les citoyens n'ecrivent plus directement dans la base =====
+async function appelerServeur(action,donnees,avecJeton){
+  const corps=Object.assign({action:action},donnees||{});
+  const faire=()=>{
+    const entetes={'Content-Type':'application/json'};
+    if(avecJeton){const t=sessionStorage.getItem('adminToken');if(t)entetes['Authorization']='Bearer '+t;}
+    return fetch('/api/envoyer',{method:'POST',headers:entetes,body:JSON.stringify(corps)});
+  };
+  let r=await faire();
+  if(r.status===401&&avecJeton&&sessionStorage.getItem('adminRefresh')){
+    if(await renouvelerJeton('admin'))r=await faire();
+  }
+  let d=null;try{d=await r.json();}catch(e){}
+  return {ok:!!(r.ok&&d&&d.ok),statut:r.status,id:(d&&d.id)?d.id:null,erreur:(d&&d.erreur)?d.erreur:null};
+}
+function messageErreurServeur(res){
+  if(res.statut===429||res.erreur==='trop_de_demandes')return "Trop d'envois en peu de temps, reessayez plus tard";
+  if(res.erreur==='delai_depasse')return 'Delai de 5 minutes depasse';
+  if(res.erreur==='pas_votre_message')return 'Vous ne pouvez modifier que vos messages';
+  if(res.erreur==='reserve_aux_autorites'||res.statut===401)return 'Session expiree : reconnectez-vous';
+  if(res.erreur==='photo_trop_grande')return 'Photo trop lourde';
+  return 'Envoi impossible, reessayez';
+}
+// Reduit une photo (taille et poids) avant envoi : le serveur n'accepte qu'environ 4,5 Mo par envoi
+function compresserImage(src,maxDim,qualite){
+  return new Promise((resolve,reject)=>{
+    const img=new Image();
+    img.onload=()=>{
+      try{
+        let w=img.naturalWidth||img.width,h=img.naturalHeight||img.height;
+        const f=Math.min(1,maxDim/Math.max(w,h));
+        w=Math.max(1,Math.round(w*f));h=Math.max(1,Math.round(h*f));
+        const c=document.createElement('canvas');c.width=w;c.height=h;
+        const ctx=c.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,w,h);ctx.drawImage(img,0,0,w,h);
+        resolve(c.toDataURL('image/jpeg',qualite));
+      }catch(e){reject(e);}
+    };
+    img.onerror=()=>reject(new Error('image illisible'));
+    img.src=src;
+  });
+}
 
 // ===== MESSAGES : retour a la ligne + modification pendant 5 minutes =====
 const DELAI_EDITION_MS = 5 * 60 * 1000;
@@ -719,9 +762,9 @@ async function enregistrerMessage(code,id,vue){
     afficherToast('Delai de 5 minutes depasse','error');
   } else if(texte!==m.texte){
     try{
-      const r=await fetch(FIREBASE_URL+'/messages/'+code+'/'+id+'.json',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({texte:texte,modifie:true})});
-      if(r.ok) afficherToast('Message modifie','success');
-      else afficherToast('Modification refusee (delai de 5 minutes depasse)','error');
+      const res=await appelerServeur('message_modifier',{code:code,id:id,texte:texte},vue==='police');
+      if(res.ok) afficherToast('Message modifie','success');
+      else afficherToast(messageErreurServeur(res),'error');
     }catch(e){ afficherToast('Erreur de modification','error'); }
   }
   window._editionMsgCode=null;
@@ -872,7 +915,7 @@ Object.assign(TRAD.fr,{
   'param-langue':'🌍 Langue','param-confidentialite':'🔒 Confidentialité',
   'conf-titre':'Confidentialité et protection des données',
   'conf-s1-titre':'👤 Qui gère cette application ?','conf-s1-texte':'AlertCitoyen est un réseau d\'alerte citoyenne fonctionnant en lien avec les forces de l\'ordre, destiné à faciliter le signalement d\'incidents et la diffusion d\'alertes de sécurité publique.',
-  'conf-s2-titre':'📋 Quelles données sont collectées ?','conf-s2-l1':'La position géographique approximative d\'un incident signalé','conf-s2-l2':'Une photo et une description, pour un avis de recherche publié par la Police','conf-s2-l3':'Le lieu, la date et le numéro de téléphone d\'un témoin signalant avoir vu une personne recherchée','conf-s2-l4':'Le matricule et la position GPS d\'un agent effectuant une demande de renfort',
+  'conf-s2-titre':'📋 Quelles données sont collectées ?','conf-s2-l1':'La position géographique approximative d\'un incident signalé','conf-s2-l2':'Une photo et une description, pour un avis de recherche publié par la Police','conf-s2-l3':'Le lieu, la date et le numéro de téléphone d\'un témoin signalant avoir vu une personne recherchée','conf-s2-l4':'Le matricule et la position GPS d\'un agent effectuant une demande de renfort','conf-s2-l5':'Des informations techniques enregistrées avec chaque signalement : adresse IP, type d\'appareil, langue, fuseau horaire et taille d\'écran, afin de limiter les fausses alertes',
   'conf-s3-titre':'🕵️ Ce qui reste anonyme','conf-s3-texte':'Un citoyen qui signale un incident ne fournit jamais son identité. Les signalements sont anonymes par défaut.',
   'conf-s4-titre':'🎯 Pourquoi ces données sont-elles collectées ?','conf-s4-texte':'Exclusivement pour la sécurité publique et la coordination avec les autorités compétentes. Aucune donnée n\'est vendue, partagée à des fins commerciales, ou utilisée pour de la publicité.',
   'conf-s5-titre':'🔐 Qui peut accéder aux données ?','conf-s5-texte':'Les données sensibles (demandes de renfort, position des agents) ne sont accessibles qu\'aux agents authentifiés par un compte individuel sécurisé. Les alertes officielles et avis de recherche sont publics par nature.',
@@ -916,7 +959,7 @@ Object.assign(TRAD.en,{
   'param-langue':'🌍 Language','param-confidentialite':'🔒 Privacy',
   'conf-titre':'Privacy and data protection',
   'conf-s1-titre':'👤 Who runs this application?','conf-s1-texte':'AlertCitoyen is a citizen alert network working alongside law enforcement, designed to facilitate incident reporting and the distribution of public safety alerts.',
-  'conf-s2-titre':'📋 What data is collected?','conf-s2-l1':'The approximate geographic location of a reported incident','conf-s2-l2':'A photo and description, for a missing person notice published by the Police','conf-s2-l3':'The location, date and phone number of a witness reporting having seen a missing person','conf-s2-l4':'The badge number and GPS position of an officer making a backup request',
+  'conf-s2-titre':'📋 What data is collected?','conf-s2-l1':'The approximate geographic location of a reported incident','conf-s2-l2':'A photo and description, for a missing person notice published by the Police','conf-s2-l3':'The location, date and phone number of a witness reporting having seen a missing person','conf-s2-l4':'The badge number and GPS position of an officer making a backup request','conf-s2-l5':'Technical information saved with each report: IP address, device type, language, time zone and screen size, to help limit false alerts',
   'conf-s3-titre':'🕵️ What remains anonymous','conf-s3-texte':'A citizen reporting an incident never provides their identity. Reports are anonymous by default.',
   'conf-s4-titre':'🎯 Why is this data collected?','conf-s4-texte':'Exclusively for public safety and coordination with the relevant authorities. No data is sold, shared for commercial purposes, or used for advertising.',
   'conf-s5-titre':'🔐 Who can access the data?','conf-s5-texte':'Sensitive data (backup requests, officer positions) is only accessible to officers authenticated through a secure individual account. Official alerts and missing person notices are public by nature.',
@@ -960,7 +1003,7 @@ Object.assign(TRAD.ar,{
   'param-langue':'🌍 اللغة','param-confidentialite':'🔒 الخصوصية',
   'conf-titre':'الخصوصية وحماية البيانات',
   'conf-s1-titre':'👤 من يدير هذا التطبيق؟','conf-s1-texte':'AlertCitoyen هي شبكة تنبيه للمواطنين تعمل بالتعاون مع قوات الأمن، مصممة لتسهيل الإبلاغ عن الحوادث ونشر تنبيهات السلامة العامة.',
-  'conf-s2-titre':'📋 ما هي البيانات التي يتم جمعها؟','conf-s2-l1':'الموقع الجغرافي التقريبي للحادث المُبلغ عنه','conf-s2-l2':'صورة ووصف، لبلاغ بحث عن شخص منشور من قبل الشرطة','conf-s2-l3':'مكان وتاريخ ورقم هاتف الشاهد الذي يُبلغ عن رؤيته لشخص مفقود','conf-s2-l4':'الرقم التسلسلي والموقع الجغرافي للضابط الذي يقدم طلب تعزيزات',
+  'conf-s2-titre':'📋 ما هي البيانات التي يتم جمعها؟','conf-s2-l1':'الموقع الجغرافي التقريبي للحادث المُبلغ عنه','conf-s2-l2':'صورة ووصف، لبلاغ بحث عن شخص منشور من قبل الشرطة','conf-s2-l3':'مكان وتاريخ ورقم هاتف الشاهد الذي يُبلغ عن رؤيته لشخص مفقود','conf-s2-l4':'الرقم التسلسلي والموقع الجغرافي للضابط الذي يقدم طلب تعزيزات','conf-s2-l5':'معلومات تقنية تُسجَّل مع كل بلاغ: عنوان IP ونوع الجهاز واللغة والمنطقة الزمنية وحجم الشاشة، للحد من البلاغات الكاذبة',
   'conf-s3-titre':'🕵️ ما يبقى مجهولاً','conf-s3-texte':'المواطن الذي يُبلغ عن حادث لا يقدم هويته أبداً. البلاغات مجهولة الهوية افتراضياً.',
   'conf-s4-titre':'🎯 لماذا يتم جمع هذه البيانات؟','conf-s4-texte':'حصرياً من أجل السلامة العامة والتنسيق مع السلطات المعنية. لا يتم بيع أي بيانات أو مشاركتها لأغراض تجارية أو استخدامها للإعلان.',
   'conf-s5-titre':'🔐 من يمكنه الوصول إلى البيانات؟','conf-s5-texte':'البيانات الحساسة (طلبات التعزيزات، مواقع الضباط) لا يمكن الوصول إليها إلا من قبل الضباط المصادق عليهم عبر حساب فردي آمن. التنبيهات الرسمية وبلاغات البحث عامة بطبيعتها.',
@@ -1098,7 +1141,7 @@ window.addEventListener('offline',()=>verifierConnexion());
 function previewPhoto(e){
   const file=e.target.files[0];if(!file)return;
   const reader=new FileReader();
-  reader.onload=ev=>{const img=document.getElementById('photo-preview');img.src=ev.target.result;img.style.display='block';document.getElementById('photo-placeholder').style.display='none';window._photoData=ev.target.result;};
+  reader.onload=async ev=>{let data=ev.target.result;try{data=await compresserImage(data,1280,0.72);}catch(e){}const img=document.getElementById('photo-preview');img.src=data;img.style.display='block';document.getElementById('photo-placeholder').style.display='none';window._photoData=data;};
   reader.readAsDataURL(file);
 }
 
@@ -1125,11 +1168,12 @@ async function sauvegarderFirebase(inc){
   try{
     marquerMien('ts:'+inc.timestamp);
     await _localiserIncident(inc);
-    const r=await fetch(FIREBASE_URL+'/incidents.json',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(inc)});
-    if(!r.ok)return null;
-    const data=await r.json();
-    if(data&&data.name)marquerMien(data.name);
-    return (data&&data.name)?data.name:null;
+    if(inc.photo&&inc.photo.length>2500000){try{inc.photo=await compresserImage(inc.photo,1000,0.6);}catch(e){inc.photo=null;}}
+    if(inc.photo&&inc.photo.length>2900000)inc.photo=null;
+    const res=await appelerServeur('incident',inc,false);
+    if(!res.ok||!res.id)return null;
+    marquerMien(res.id);
+    return res.id;
   }catch(e){return null;}
 }
 async function chargerFirebase(){
@@ -1395,15 +1439,14 @@ async function envoyerSignalementModal(){
   }catch(e){}
   const signalement={lieu,quand:quand||'Non précisé',telephone,timestamp:Date.now(),lat:coords?coords.lat:null,lng:coords?coords.lng:null};
   try{
-    const r=await fetch(FIREBASE_URL+'/avis_recherche/'+id+'/signalements.json',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(signalement)});
-    if(!r.ok)throw new Error('Firebase a refusé l\'écriture ('+r.status+')');
-    const data=await r.json().catch(()=>null);
-    const sigId=data&&data.name?data.name:null;
+    const res=await appelerServeur('temoin',{avisId:id,lieu:lieu,quand:signalement.quand,telephone:telephone,lat:signalement.lat,lng:signalement.lng,timestamp:signalement.timestamp},false);
+    if(!res.ok)throw new Error('refuse ('+(res.erreur||res.statut)+')');
+    const sigId=res.id||null;
     // Si la géolocalisation n'avait pas fini à temps, on corrige la position dès qu'elle arrive vraiment
     if(sigId&&coordFinalPromise){
       coordFinalPromise.then(coordsFinal=>{
         if(coordsFinal&&(coordsFinal.lat!==signalement.lat||coordsFinal.lng!==signalement.lng)){
-          fetch(FIREBASE_URL+'/avis_recherche/'+id+'/signalements/'+sigId+'.json',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({lat:coordsFinal.lat,lng:coordsFinal.lng})}).catch(()=>{});
+          appelerServeur('temoin_coords',{avisId:id,sigId:sigId,lat:coordsFinal.lat,lng:coordsFinal.lng},false).catch(()=>{});
         }
       }).catch(()=>{});
     }
@@ -1625,7 +1668,7 @@ async function verifierCodeRenfort(){
       if(btn){btn.disabled=false;btn.textContent=t('renfort-continuer');}
       return;
     }
-    sessionStorage.setItem('agentToken',data.idToken);
+    _memoriserSession('agent',data);
     document.getElementById('renfort-etape-code').style.display='none';
     document.getElementById('renfort-etape-form').style.display='block';
   }catch(e){
@@ -1767,9 +1810,13 @@ async function soumettre(){
     await sauvegarderLocalement(incident);
     afficherToast('📶 Sauvegardé hors ligne — envoi automatique au retour', 'success');
   } else {
-    sauvegarderFirebase(incident).then((firebaseId)=>{
-      // (plus de notification de sa propre alerte : seules celles des autres sont notifiees)
-      // Son + notification pour le propriétaire
+    sauvegarderFirebase(incident).then(async (firebaseId)=>{
+      if(!firebaseId){
+        // Envoi impossible pour l'instant (reseau, limite, serveur) : on garde le signalement et on reessaie
+        await sauvegarderLocalement(incident);
+        afficherToast('📶 Signalement conservé — envoi automatique dès que possible', 'success');
+        setTimeout(envoyerPending, 60000);
+      }
     });
   }
 }
@@ -1866,7 +1913,7 @@ async function verifierAdmin(){
       return;
     }
     sessionStorage.setItem('admin','ok');
-    sessionStorage.setItem('adminToken',data.idToken);
+    _memoriserSession('admin',data);
     sessionStorage.setItem('adminEmail',data.email);
     document.getElementById('admin-email').value='';
     document.getElementById('admin-password').value='';
@@ -1884,7 +1931,77 @@ function withAuth(url){
   if(!tok)return url;
   return url+(url.includes('?')?'&':'?')+'auth='+tok;
 }
-function deconnecterAdmin(){sessionStorage.removeItem('admin');sessionStorage.removeItem('adminToken');sessionStorage.removeItem('adminEmail');naviguer('accueil');afficherToast('Déconnecté','success');}
+// ===== RENOUVELLEMENT AUTOMATIQUE DE LA SESSION (le jeton Firebase est valable 1 heure) =====
+const _JETONS={admin:{jeton:'adminToken',refresh:'adminRefresh',exp:'adminExp'},agent:{jeton:'agentToken',refresh:'agentRefresh',exp:'agentExp'}};
+function _memoriserSession(type,data){
+  const c=_JETONS[type];
+  try{
+    sessionStorage.setItem(c.jeton,data.idToken);
+    if(data.refreshToken)sessionStorage.setItem(c.refresh,data.refreshToken);
+    sessionStorage.setItem(c.exp,String(Date.now()+(parseInt(data.expiresIn||'3600')*1000)));
+  }catch(e){}
+}
+const _renouvEnCours={};
+function renouvelerJeton(type){
+  const c=_JETONS[type];
+  const rt=sessionStorage.getItem(c.refresh);
+  if(!rt)return Promise.resolve(false);
+  if(_renouvEnCours[type])return _renouvEnCours[type];
+  const p=(async()=>{
+    try{
+      const r=await fetch('https://securetoken.googleapis.com/v1/token?key='+FIREBASE_API_KEY,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'grant_type=refresh_token&refresh_token='+encodeURIComponent(rt)});
+      if(!r.ok)return false;
+      const d=await r.json();
+      if(!d.id_token)return false;
+      sessionStorage.setItem(c.jeton,d.id_token);
+      if(d.refresh_token)sessionStorage.setItem(c.refresh,d.refresh_token);
+      sessionStorage.setItem(c.exp,String(Date.now()+(parseInt(d.expires_in||'3600')*1000)));
+      return true;
+    }catch(e){return false;}
+  })();
+  _renouvEnCours[type]=p;
+  p.then(()=>{_renouvEnCours[type]=null;},()=>{_renouvEnCours[type]=null;});
+  return p;
+}
+function _verifierJetons(){
+  for(const type of ['admin','agent']){
+    const c=_JETONS[type];
+    if(!sessionStorage.getItem(c.jeton)||!sessionStorage.getItem(c.refresh))continue;
+    const exp=parseInt(sessionStorage.getItem(c.exp)||'0');
+    if(!exp||exp-Date.now()<10*60*1000)renouvelerJeton(type);
+  }
+}
+setInterval(_verifierJetons,60*1000);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)_verifierJetons();});
+window.addEventListener('online',_verifierJetons);
+// Filet de securite : si Firebase repond 401 avec un jeton expire, on le renouvelle et on retente une seule fois
+(function(){
+  const fetchOriginal=window.fetch.bind(window);
+  window.fetch=async function(url,opts){
+    const rep=await fetchOriginal(url,opts);
+    try{
+      if(rep.status===401&&typeof url==='string'&&url.includes('firebaseio.com')&&/[?&]auth=/.test(url)){
+        const ancien=(url.match(/[?&]auth=([^&]+)/)||[])[1]||'';
+        let type=null;
+        if(ancien&&ancien===sessionStorage.getItem('agentToken'))type='agent';
+        else if(sessionStorage.getItem('adminRefresh'))type='admin';
+        else if(sessionStorage.getItem('agentRefresh'))type='agent';
+        if(type){
+          const c=_JETONS[type];
+          let nouveau=sessionStorage.getItem(c.jeton);
+          if(nouveau===ancien){
+            const exp=parseInt(sessionStorage.getItem(c.exp)||'0');
+            if(exp&&Date.now()<exp-60000)return rep; // jeton encore valide : refus de droits, pas une expiration
+            if(await renouvelerJeton(type))nouveau=sessionStorage.getItem(c.jeton);
+          }
+          if(nouveau&&nouveau!==ancien)return fetchOriginal(url.replace(/([?&]auth=)[^&]+/,'$1'+nouveau),opts);
+        }
+      }
+    }catch(e){}
+    return rep;
+  };
+})();
+function deconnecterAdmin(){sessionStorage.removeItem('admin');sessionStorage.removeItem('adminToken');sessionStorage.removeItem('adminRefresh');sessionStorage.removeItem('adminExp');sessionStorage.removeItem('adminEmail');naviguer('accueil');afficherToast('Déconnecté','success');}
 
 async function chargerAdmin(){
   await chargerIncidents();
@@ -2137,7 +2254,7 @@ function surveillerNouvellesAlertes() {
           if (inc.timestamp > _dernierTimestamp) {
             _dernierTimestamp = inc.timestamp + 1;
             _tsSave('ac_ts_inc', _dernierTimestamp);
-            if (estMien(id, inc.timestamp)) continue;
+            if (estMien(id, inc.timestamp) || estMien(id, inc.tsLocal)) continue;
             // Nouvelle alerte detectee !
             jouerSonAlerte(inc.urgence);
             afficherToast('🚨 Nouvelle alerte : ' + (inc.titre || 'Incident signalé'), 'error');
@@ -2233,7 +2350,7 @@ function surveillerAlertesEtSignalements() {
                   }
                 }
                 // Marquer comme notifié dans Firebase — ne sera plus jamais re-signalé, peu importe l'appareil ou le rechargement
-                fetch(FIREBASE_URL + '/avis_recherche/' + avisId + '/signalements/' + sigId + '.json', {method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({notifie:true})}).catch(()=>{});
+                fetch(withAuth(FIREBASE_URL + '/avis_recherche/' + avisId + '/signalements/' + sigId + '.json'), {method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({notifie:true})}).catch(()=>{});
               }
             }
           }
@@ -2586,17 +2703,9 @@ async function envoyerMessageCitoyen(codeArg) {
   const texte = input.value.trim();
   if (!texte) return;
   input.value = '';
-  const msg = {
-    texte: texte,
-    expediteur: 'citoyen',
-    timestamp: {'.sv': 'timestamp'}
-  };
   try {
-    await fetch(FIREBASE_URL + '/messages/' + code + '.json', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify(msg)
-    });
+    const res = await appelerServeur('message', {code: code, texte: texte}, false);
+    if (!res.ok) { input.value = texte; afficherToast(messageErreurServeur(res), 'error'); return; }
     afficherToast('Message envoyé à la Police ✅', 'success');
     chargerMessagesFil(code);
   } catch(e) {
@@ -2643,17 +2752,9 @@ async function repondrePolice(code) {
   const texte = input.value.trim();
   if (!texte) return;
   input.value = '';
-  const msg = {
-    texte: texte,
-    expediteur: 'police',
-    timestamp: {'.sv': 'timestamp'}
-  };
   try {
-    await fetch(FIREBASE_URL + '/messages/' + code + '.json', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify(msg)
-    });
+    const res = await appelerServeur('message', {code: code, texte: texte, expediteur: 'police'}, true);
+    if (!res.ok) { input.value = texte; afficherToast(messageErreurServeur(res), 'error'); return; }
     afficherToast('Réponse envoyée au citoyen ✅', 'success');
     chargerMessagesAdmin(code);
   } catch(e) {
