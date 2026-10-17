@@ -12,7 +12,9 @@ const FENETRE_SEC = 3600;
 const DELAI_EDITION_MS = 5 * 60 * 1000 + 15000; // modification d'un message : 5 minutes (+15 s de marge)
 const DELAI_COORDS_MS = 10 * 60 * 1000;
 const PHOTO_MAX = 3000000; // caracteres (photo en base64)
-const CATEGORIES = ['terrorisme', 'vol', 'suspect', 'vandalisme', 'criminalite'];
+// Categorie : mot en minuscules (ex. vol, incendie, kidnapping, autre...). Accepte toutes les categories du formulaire,
+// y compris celles ajoutees plus tard, mais refuse tout texte qui ressemble a du code.
+const CATEGORIE = /^[a-z][a-z_-]{1,29}$/;
 const URGENCES = ['haute', 'moyenne', 'basse'];
 
 const TEL = /^[+0-9 ()\-.]{6,25}$/;
@@ -61,9 +63,9 @@ async function limiter(db, ip, type) {
 }
 
 // ----- Signalement d'incident -----
-async function creerIncident(db, c, ip, req) {
+async function creerIncident(db, c, ip, avantEcriture) {
   const categorie = texte(c.categorie, 30);
-  if (!CATEGORIES.includes(categorie)) throw erreur(400, 'categorie');
+  if (!CATEGORIE.test(categorie)) throw erreur(400, 'categorie');
   const titre = texte(c.titre, 150);
   if (!titre) throw erreur(400, 'titre');
   const code = texte(c.codeAlerte, 20);
@@ -103,6 +105,7 @@ async function creerIncident(db, c, ip, req) {
   // Identifiant fixe calcule depuis le code de suivi et l'heure du telephone : si le meme signalement est
   // renvoye (reseau coupe au mauvais moment), il n'est pas cree deux fois.
   const ts = nombre(c.timestamp);
+  await avantEcriture();
   if (ts === null) {
     const ref = db.ref('incidents').push();
     await ref.set(incident);
@@ -114,19 +117,20 @@ async function creerIncident(db, c, ip, req) {
 }
 
 // ----- Messages citoyen <-> police -----
-async function creerMessage(db, c, role) {
+async function creerMessage(db, c, role, avantEcriture) {
   const code = texte(c.code, 20);
   if (!CODE.test(code)) throw erreur(400, 'code');
   const t = texte(c.texte, 1000);
   if (!t) throw erreur(400, 'texte');
   const expediteur = c.expediteur === 'police' ? 'police' : 'citoyen';
   if (expediteur === 'police' && role !== 'autorite') throw erreur(403, 'reserve_aux_autorites');
+  await avantEcriture();
   const ref = db.ref('messages/' + code).push();
   await ref.set({ texte: t, expediteur, timestamp: Date.now() });
   return { id: ref.key };
 }
 
-async function modifierMessage(db, c, role) {
+async function modifierMessage(db, c, role, avantEcriture) {
   const code = texte(c.code, 20);
   if (!CODE.test(code) || !ID.test(String(c.id || ''))) throw erreur(400, 'identifiant');
   const t = texte(c.texte, 1000);
@@ -138,12 +142,13 @@ async function modifierMessage(db, c, role) {
   const monRole = role === 'autorite' ? 'police' : 'citoyen';
   if (m.expediteur !== monRole) throw erreur(403, 'pas_votre_message');
   if (Date.now() - (m.timestamp || 0) > DELAI_EDITION_MS) throw erreur(403, 'delai_depasse');
+  await avantEcriture();
   await ref.update({ texte: t, modifie: true });
   return {};
 }
 
 // ----- Signalement d'un temoin sur un avis de recherche -----
-async function creerTemoin(db, c) {
+async function creerTemoin(db, c, avantEcriture) {
   const avisId = String(c.avisId || '');
   if (!ID.test(avisId)) throw erreur(400, 'avis');
   const lieu = texte(c.lieu, 200);
@@ -153,6 +158,7 @@ async function creerTemoin(db, c) {
   const existe = await db.ref('avis_recherche/' + avisId + '/nom').once('value');
   if (!existe.exists()) throw erreur(404, 'avis_introuvable');
   const bonnesCoords = coordsOk(c.lat, c.lng);
+  await avantEcriture();
   const ref = db.ref('avis_recherche/' + avisId + '/signalements').push();
   await ref.set({
     lieu, quand: texte(c.quand, 120) || 'Non precise', telephone: tel,
@@ -162,7 +168,7 @@ async function creerTemoin(db, c) {
   return { id: ref.key };
 }
 
-async function majCoordsTemoin(db, c) {
+async function majCoordsTemoin(db, c, avantEcriture) {
   const avisId = String(c.avisId || ''), sigId = String(c.sigId || '');
   if (!ID.test(avisId) || !ID.test(sigId)) throw erreur(400, 'identifiant');
   if (!coordsOk(c.lat, c.lng)) throw erreur(400, 'coordonnees');
@@ -170,6 +176,7 @@ async function majCoordsTemoin(db, c) {
   const snap = await ref.once('value');
   if (!snap.exists()) throw erreur(404, 'introuvable');
   if (Date.now() - (snap.val().timestamp || 0) > DELAI_COORDS_MS) throw erreur(403, 'delai_depasse');
+  await avantEcriture();
   await ref.update({ lat: c.lat, lng: c.lng });
   return {};
 }
@@ -204,13 +211,15 @@ module.exports = async (req, res) => {
     const action = c.action;
     const limite = { incident: 'incident', message: 'message', message_modifier: 'message', temoin: 'temoin', temoin_coords: 'coords' }[action];
     if (!limite) throw erreur(400, 'action');
-    if (role !== 'autorite') await limiter(db, ipDe(req), limite);
+    const ip = ipDe(req);
+    // la limite par IP n'est comptee qu'au moment d'ecrire : un envoi refuse (donnees invalides) n'use pas le quota
+    const avantEcriture = async () => { if (role !== 'autorite') await limiter(db, ip, limite); };
     let resultat;
-    if (action === 'incident') resultat = await creerIncident(db, c, ipDe(req), req);
-    else if (action === 'message') resultat = await creerMessage(db, c, role);
-    else if (action === 'message_modifier') resultat = await modifierMessage(db, c, role);
-    else if (action === 'temoin') resultat = await creerTemoin(db, c);
-    else resultat = await majCoordsTemoin(db, c);
+    if (action === 'incident') resultat = await creerIncident(db, c, ip, avantEcriture);
+    else if (action === 'message') resultat = await creerMessage(db, c, role, avantEcriture);
+    else if (action === 'message_modifier') resultat = await modifierMessage(db, c, role, avantEcriture);
+    else if (action === 'temoin') resultat = await creerTemoin(db, c, avantEcriture);
+    else resultat = await majCoordsTemoin(db, c, avantEcriture);
     return repondre(res, 200, Object.assign({ ok: true }, resultat));
   } catch (e) {
     if (e && e.statut) return repondre(res, e.statut, { ok: false, erreur: e.code });
