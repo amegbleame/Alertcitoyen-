@@ -6,11 +6,23 @@ const crypto = require('crypto');
 
 const URL_BASE = process.env.FIREBASE_DATABASE_URL || 'https://alertcitoyen-daf62-default-rtdb.firebaseio.com';
 
+const VERSION = '2026-10-26-comptes-individuels';
+
+// --- Comptes autorises : un compte par personne, avec un role ---
+//  admin : panel d'administration complet (SOS, signalements, alertes officielles, reponses de la police)
+//  agent : peut seulement envoyer une demande de renfort
+// Comptes "fondateurs" (toujours valides, meme si la base est inaccessible) :
+const ADMINS_FONDATEURS = ['mhTvE0AetTSvmcUsdeuhFx9PKzU2'];
+const AGENTS_FONDATEURS = ['VLDWJnoc3YRizgGkagGPxhMuWru2'];
+// Les autres personnes sont declarees dans la base, noeud  autorites/<UID>/role  ("admin" ou "agent").
+// Pour retirer une personne : supprimer son noeud (effet immediat).
+
 // --- Reglages (modifiables) ---
-const LIMITES = { incident: 8, message: 40, temoin: 6, coords: 12 }; // envois par adresse IP et par heure
+const LIMITES = { incident: 8, message: 40, temoin: 6, coords: 12, sos: 10, sos_maj: 40, push: 20 }; // envois par adresse IP et par heure
 const FENETRE_SEC = 3600;
 const DELAI_EDITION_MS = 5 * 60 * 1000 + 15000; // modification d'un message : 5 minutes (+15 s de marge)
 const DELAI_COORDS_MS = 10 * 60 * 1000;
+const DELAI_SOS_MS = 30 * 60 * 1000; // un SOS peut etre complete ou annule pendant 30 minutes
 const PHOTO_MAX = 3000000; // caracteres (photo en base64)
 // Categorie : mot en minuscules (ex. vol, incendie, kidnapping, autre...). Accepte toutes les categories du formulaire,
 // y compris celles ajoutees plus tard, mais refuse tout texte qui ressemble a du code.
@@ -47,12 +59,32 @@ function ipDe(req) {
   return (req.socket && req.socket.remoteAddress) || 'inconnue';
 }
 
-// 'autorite' si un jeton Firebase valide est fourni, 'citoyen' sinon ; jeton present mais invalide => erreur 401
-async function roleAppelant(req) {
+// Role d'un compte : 'admin', 'agent' ou null (compte inconnu)
+async function roleDuCompte(uid) {
+  if (ADMINS_FONDATEURS.includes(uid)) return 'admin';
+  if (AGENTS_FONDATEURS.includes(uid)) return 'agent';
+  try {
+    const snap = await admin.database().ref('autorites/' + uid + '/role').once('value');
+    const r = snap.val();
+    if (r === 'admin' || r === 'agent') return r;
+  } catch (e) {}
+  return null;
+}
+// Jeton Firebase : renvoie { present, uid, role } ; jeton present mais invalide => erreur 401
+async function verifierJeton(req) {
   const m = String((req.headers || {}).authorization || '').match(/^Bearer (.+)$/);
-  if (!m) return 'citoyen';
-  try { await admin.auth().verifyIdToken(m[1]); return 'autorite'; }
-  catch (e) { throw erreur(401, 'jeton'); }
+  if (!m) return { present: false };
+  let d;
+  try { d = await admin.auth().verifyIdToken(m[1]); } catch (e) { throw erreur(401, 'jeton'); }
+  return { present: true, uid: d.uid, role: await roleDuCompte(d.uid) };
+}
+// 'autorite' (admin), 'agent', ou 'citoyen' sans jeton ; compte connecte mais absent de la liste => 403
+async function roleAppelant(req) {
+  const v = await verifierJeton(req);
+  if (!v.present) return 'citoyen';
+  if (v.role === 'admin') return 'autorite';
+  if (v.role === 'agent') return 'agent';
+  throw erreur(403, 'non_autorise');
 }
 
 async function limiter(db, ip, type) {
@@ -109,10 +141,15 @@ async function creerIncident(db, c, ip, avantEcriture) {
   if (ts === null) {
     const ref = db.ref('incidents').push();
     await ref.set(incident);
+    await envoyerPush('autorites', { titre: '🚨 Nouveau signalement', corps: 'Catégorie : ' + categorie, tag: 'signalement' });
     return { id: ref.key };
   }
   const cle = 'i' + crypto.createHash('sha1').update(code + '|' + ts).digest('hex').slice(0, 19);
-  await db.ref('incidents/' + cle).transaction((existant) => (existant === null ? incident : undefined));
+  const res = await db.ref('incidents/' + cle).transaction((existant) => (existant === null ? incident : undefined));
+  if (res && res.committed) {
+    // texte volontairement generique : le contenu du signalement ne transite pas par le service de notification
+    await envoyerPush('autorites', { titre: '🚨 Nouveau signalement', corps: 'Catégorie : ' + categorie, tag: 'signalement' });
+  }
   return { id: cle };
 }
 
@@ -181,6 +218,134 @@ async function majCoordsTemoin(db, c, avantEcriture) {
   return {};
 }
 
+
+
+// ----- Notifications push (Firebase Cloud Messaging) : groupes 'autorites' et 'citoyens' -----
+async function envoyerPush(topic, p) {
+  try {
+    await admin.messaging().send({
+      topic,
+      data: { titre: String(p.titre || ''), corps: String(p.corps || ''), url: p.url || '/', tag: p.tag || '', urgent: p.urgent ? '1' : '0' },
+      webpush: { headers: { Urgency: 'high', TTL: String(p.ttl || 3600) } }
+    });
+  } catch (e) { console.error('push :', e && e.message); }
+}
+const JETON_PUSH = /^[A-Za-z0-9_:\-]{50,500}$/;
+async function abonnerPush(c, role, avantEcriture) {
+  const token = String(c.token || '');
+  if (!JETON_PUSH.test(token)) throw erreur(400, 'jeton_push');
+  const groupe = c.groupe === 'autorites' ? 'autorites' : 'citoyens';
+  if (groupe === 'autorites' && role !== 'autorite') throw erreur(403, 'reserve_aux_autorites');
+  await avantEcriture();
+  const m = admin.messaging();
+  const rep = await m.subscribeToTopic([token], groupe);
+  if (rep && rep.failureCount > 0) throw erreur(400, 'abonnement_refuse');
+  // un telephone d'autorite ne recoit pas les alertes destinees aux citoyens (pas de notification de ses propres alertes)
+  if (groupe === 'autorites') { try { await m.unsubscribeFromTopic([token], 'citoyens'); } catch (e) {} }
+  return {};
+}
+async function desabonnerPush(c, avantEcriture) {
+  const token = String(c.token || '');
+  if (!JETON_PUSH.test(token)) throw erreur(400, 'jeton_push');
+  const groupe = c.groupe === 'autorites' ? 'autorites' : 'citoyens';
+  await avantEcriture();
+  await admin.messaging().unsubscribeFromTopic([token], groupe);
+  return {};
+}
+// Alerte officielle publiee par une autorite : notification a tous les citoyens abonnes
+async function pushAlerte(db, c, role) {
+  if (role !== 'autorite') throw erreur(403, 'reserve_aux_autorites');
+  const id = String(c.id || '');
+  if (!ID.test(id)) throw erreur(400, 'identifiant');
+  const snap = await db.ref('alertes_officielles/' + id).once('value');
+  if (!snap.exists()) throw erreur(404, 'introuvable');
+  const a = snap.val();
+  if (a.actif === false) throw erreur(400, 'alerte_inactive');
+  if (Date.now() - (a.timestamp || 0) > 10 * 60 * 1000) throw erreur(403, 'delai_depasse');
+  await envoyerPush('citoyens', { titre: '📢 Alerte officielle', corps: texte(a.message, 140), tag: 'alerte-' + id, urgent: true, ttl: 6 * 3600 });
+  return {};
+}
+// Demande de renfort d'un agent : notification aux autorites
+async function pushRenfort(db, c, role) {
+  if (role !== 'autorite' && role !== 'agent') throw erreur(403, 'reserve_aux_autorites');
+  const id = String(c.id || '');
+  if (!ID.test(id)) throw erreur(400, 'identifiant');
+  const snap = await db.ref('demandes_renfort/' + id).once('value');
+  if (!snap.exists()) throw erreur(404, 'introuvable');
+  const d = snap.val();
+  if (Date.now() - (d.timestamp || 0) > 10 * 60 * 1000) throw erreur(403, 'delai_depasse');
+  await envoyerPush('autorites', { titre: '🆘 Demande de renfort', corps: texte((d.type || 'Renfort') + (d.lieu ? ' — ' + d.lieu : ''), 140), tag: 'renfort-' + id, urgent: true });
+  return {};
+}
+
+// ----- SOS : personne en danger (visible uniquement par les autorites) -----
+// Lieu approximatif deduit de l'adresse IP par Vercel (utilise seulement si le GPS n'est pas disponible)
+function lieuApproxDepuisEntetes(req) {
+  const h = req.headers || {};
+  const dec = (v) => { try { return decodeURIComponent(String(v || '')); } catch (e) { return String(v || ''); } };
+  const lat = parseFloat(h['x-vercel-ip-latitude']), lng = parseFloat(h['x-vercel-ip-longitude']);
+  const ville = dec(h['x-vercel-ip-city']).slice(0, 80);
+  const pays = String(h['x-vercel-ip-country'] || '').slice(0, 4);
+  const coords = isFinite(lat) && isFinite(lng);
+  if (!coords && !ville) return null;
+  return { ville: ville || null, pays: pays || null, lat: coords ? lat : null, lng: coords ? lng : null };
+}
+
+async function creerSOS(db, c, req, ip, avantEcriture) {
+  const idLocal = texte(c.idLocal, 40);
+  if (!/^[A-Za-z0-9_-]{8,40}$/.test(idLocal)) throw erreur(400, 'identifiant');
+  const gps = coordsOk(c.lat, c.lng);
+  const tel = texte(c.telephone, 25);
+  const sos = {
+    timestamp: Date.now(),
+    tsLocal: nombre(c.timestamp),
+    statut: 'nouveau',
+    gps,
+    lat: gps ? c.lat : null, lng: gps ? c.lng : null,
+    precision: gps ? nombre(c.precision) : null,
+    approx: gps ? null : lieuApproxDepuisEntetes(req),
+    telephone: TEL.test(tel) ? tel : null,
+    ip, appareil: texte(c.appareil, 100)
+  };
+  // Identifiant fixe : un SOS renvoye (reseau coupe) n'est pas cree deux fois
+  const cle = 's' + crypto.createHash('sha1').update(idLocal).digest('hex').slice(0, 19);
+  await avantEcriture();
+  const res = await db.ref('sos/' + cle).transaction((existant) => (existant === null ? sos : undefined));
+  if (res && res.committed) {
+    await envoyerPush('autorites', { titre: '🆘 SOS — personne en danger', corps: 'Ouvrez AlertCitoyen pour voir la position', tag: 'sos-' + cle, urgent: true, ttl: 1800 });
+  }
+  return { id: cle };
+}
+
+async function majSOS(db, c, avantEcriture) {
+  const id = String(c.id || '');
+  if (!ID.test(id)) throw erreur(400, 'identifiant');
+  const ref = db.ref('sos/' + id);
+  const snap = await ref.once('value');
+  if (!snap.exists()) throw erreur(404, 'introuvable');
+  const s = snap.val();
+  if (Date.now() - (s.timestamp || 0) > DELAI_SOS_MS) throw erreur(403, 'delai_depasse');
+  const maj = {};
+  if (coordsOk(c.lat, c.lng)) {
+    maj.lat = c.lat; maj.lng = c.lng; maj.gps = true; maj.approx = null;
+    const pr = nombre(c.precision); if (pr !== null) maj.precision = pr;
+  }
+  if (c.telephone !== undefined) {
+    const t = texte(c.telephone, 25);
+    if (!TEL.test(t)) throw erreur(400, 'telephone');
+    maj.telephone = t;
+  }
+  if (c.annuler === true) {
+    maj.annuleParCitoyen = true;
+    if (s.statut === 'nouveau') maj.statut = 'annule';
+  }
+  if (!Object.keys(maj).length) throw erreur(400, 'rien_a_modifier');
+  maj.majTs = Date.now();
+  await avantEcriture();
+  await ref.update(maj);
+  return {};
+}
+
 module.exports = async (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
   if (req.method === 'GET') {
@@ -188,7 +353,7 @@ module.exports = async (req, res) => {
     if (req.query && req.query.diagnostic) {
       let compte = !!process.env.FIREBASE_SERVICE_ACCOUNT, pret = false;
       try { init(); pret = true; } catch (e) { pret = false; }
-      return repondre(res, 200, { ok: pret, compte_present: compte, connexion_prete: pret });
+      return repondre(res, 200, { ok: pret, compte_present: compte, connexion_prete: pret, version: VERSION, comptes_fondateurs: ADMINS_FONDATEURS.length + AGENTS_FONDATEURS.length });
     }
     return repondre(res, 405, { ok: false, erreur: 'methode' });
   }
@@ -207,9 +372,15 @@ module.exports = async (req, res) => {
   try {
     init();
     const db = admin.database();
-    const role = await roleAppelant(req);
     const action = c.action;
-    const limite = { incident: 'incident', message: 'message', message_modifier: 'message', temoin: 'temoin', temoin_coords: 'coords' }[action];
+    if (action === 'moi') {
+      // Verification d'un compte : est-il dans la liste des autorites ?
+      const v = await verifierJeton(req);
+      if (!v.present) throw erreur(401, 'jeton');
+      return repondre(res, 200, { ok: true, role: v.role, autorite: v.role === 'admin', uid: v.uid });
+    }
+    const role = await roleAppelant(req);
+    const limite = { incident: 'incident', message: 'message', message_modifier: 'message', temoin: 'temoin', temoin_coords: 'coords', sos: 'sos', sos_maj: 'sos_maj', push_abonner: 'push', push_desabonner: 'push', push_alerte: 'push', push_renfort: 'push' }[action];
     if (!limite) throw erreur(400, 'action');
     const ip = ipDe(req);
     // la limite par IP n'est comptee qu'au moment d'ecrire : un envoi refuse (donnees invalides) n'use pas le quota
@@ -219,6 +390,12 @@ module.exports = async (req, res) => {
     else if (action === 'message') resultat = await creerMessage(db, c, role, avantEcriture);
     else if (action === 'message_modifier') resultat = await modifierMessage(db, c, role, avantEcriture);
     else if (action === 'temoin') resultat = await creerTemoin(db, c, avantEcriture);
+    else if (action === 'sos') resultat = await creerSOS(db, c, req, ip, avantEcriture);
+    else if (action === 'sos_maj') resultat = await majSOS(db, c, avantEcriture);
+    else if (action === 'push_abonner') resultat = await abonnerPush(c, role, avantEcriture);
+    else if (action === 'push_desabonner') resultat = await desabonnerPush(c, avantEcriture);
+    else if (action === 'push_alerte') resultat = await pushAlerte(db, c, role);
+    else if (action === 'push_renfort') resultat = await pushRenfort(db, c, role);
     else resultat = await majCoordsTemoin(db, c, avantEcriture);
     return repondre(res, 200, Object.assign({ ok: true }, resultat));
   } catch (e) {
