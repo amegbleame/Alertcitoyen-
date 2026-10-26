@@ -49,13 +49,34 @@ self.addEventListener('fetch', (e) => {
   })());
 });
 
+// Notification push recue (application fermee ou non) : on l'affiche toujours
+self.addEventListener('push', (e) => {
+  let d = {};
+  try {
+    const p = e.data ? e.data.json() : {};
+    d = p.data || p.notification || p || {};
+  } catch (err) {}
+  const urgent = d.urgent === '1' || d.urgent === true;
+  const titre = d.titre || d.title || 'AlertCitoyen';
+  const options = {
+    body: d.corps || d.body || '',
+    icon: '/icons/icon-192.png',
+    badge: '/icons/icon-192.png',
+    data: { url: d.url || '/' },
+    vibrate: urgent ? [400, 150, 400, 150, 400] : [200, 100, 200],
+    requireInteraction: urgent
+  };
+  if (d.tag) { options.tag = d.tag; options.renotify = true; }
+  e.waitUntil(self.registration.showNotification(titre, options));
+});
+
 // Toucher une notification ouvre / ramène l'application
 self.addEventListener('notificationclick', (e) => {
   e.notification.close();
+  const url = (e.notification.data && e.notification.data.url) || '/';
   e.waitUntil((async () => {
     const fenetres = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
     if (fenetres.length) return fenetres[0].focus();
-    return self.clients.openWindow('./');
+    return self.clients.openWindow(url);
   })());
 });
-    

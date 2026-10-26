@@ -175,6 +175,20 @@ body.rtl .incident-card.urgence-basse{border-right-color:#27AE60;}
 .dot:nth-child(3){animation-delay:0.4s;}
 @keyframes typing{0%,60%,100%{transform:translateY(0);}30%{transform:translateY(-8px);}}
 html,body{touch-action:pan-x pan-y;}
+/* SOS */
+#sos-btn{position:fixed;right:14px;bottom:92px;width:58px;height:58px;border-radius:50%;background:#C0392B;color:#fff;border:3px solid rgba(255,255,255,.9);font-size:20px;font-weight:800;display:flex;align-items:center;justify-content:center;z-index:95;box-shadow:0 4px 14px rgba(0,0,0,.45);touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;cursor:pointer;padding:0;--p:0%;}
+#sos-btn::before{content:'';position:absolute;top:-8px;left:-8px;right:-8px;bottom:-8px;border-radius:50%;background:conic-gradient(#fff var(--p),transparent 0);-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 4px),#000 calc(100% - 3px));mask:radial-gradient(farthest-side,transparent calc(100% - 4px),#000 calc(100% - 3px));pointer-events:none;}
+#sos-btn.appui{transform:scale(1.08);}
+#sos-ecran{position:fixed;top:0;left:0;right:0;bottom:0;background:#0b0b14;z-index:99998;display:flex;align-items:center;justify-content:center;padding:24px;box-sizing:border-box;}
+.sos-boite{width:100%;max-width:340px;text-align:center;color:#cfd2da;}
+.sos-icone{font-size:44px;margin-bottom:10px;opacity:.9;}
+.sos-statut{font-size:17px;margin-bottom:22px;line-height:1.4;}
+.sos-detail{font-size:11px;color:#4b4f63;margin:-14px 0 18px;min-height:0;}
+.sos-actions{display:flex;flex-direction:column;gap:10px;margin-bottom:22px;}
+.sos-btn-sec{background:#1c1c2e;color:#e6e8ee;border:1px solid #33354a;border-radius:12px;padding:14px;font-size:15px;cursor:pointer;width:100%;}
+.sos-champ{width:100%;box-sizing:border-box;padding:12px;border-radius:10px;border:1px solid #444;background:#0a0a1a;color:#fff;font-size:16px;margin-bottom:8px;}
+.sos-bas{display:flex;justify-content:center;gap:22px;}
+.sos-lien{background:none;border:none;color:#7b8094;font-size:13px;text-decoration:underline;cursor:pointer;}
 </style>
 </head>
 <body>
@@ -413,6 +427,8 @@ html,body{touch-action:pan-x pan-y;}
         <li data-t="conf-s2-l2">Une photo et une description, pour un avis de recherche publié par la Police</li>
         <li data-t="conf-s2-l3">Le lieu, la date et le numéro de téléphone d'un témoin signalant avoir vu une personne recherchée</li>
         <li data-t="conf-s2-l4">Le matricule et la position GPS d'un agent effectuant une demande de renfort</li>
+<li data-t="conf-s2-l7">Si vous activez les notifications : un identifiant technique de votre téléphone est enregistré par le service de notification de Google (Firebase) pour vous envoyer les alertes</li>
+<li data-t="conf-s2-l6">En cas d'alerte SOS : votre position (et votre numéro si vous choisissez de l'ajouter), visibles uniquement par les autorités</li>
 <li data-t="conf-s2-l5">Des informations techniques enregistrées avec chaque signalement : adresse IP, type d'appareil, langue, fuseau horaire et taille d'écran, afin de limiter les fausses alertes</li>
       </ul>
     </div>
@@ -503,6 +519,13 @@ html,body{touch-action:pan-x pan-y;}
       </div>
     </div>
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:24px;" id="admin-stats"></div>
+
+    <!-- SOS DES CITOYENS EN DANGER (visible uniquement des autorites, affiche seulement s'il y en a un) -->
+    <div id="sos-section" style="display:none;background:#3a0f0f;border:1px solid #E74C3C;border-radius:14px;padding:16px;margin-bottom:16px;">
+      <h3 style="color:#FF6B6B;margin-bottom:4px;font-size:15px;">🆘 SOS — personne en danger</h3>
+      <p style="font-size:11px;color:#9CA3AF;margin-bottom:12px;">Visible uniquement par les autorités connectées</p>
+      <div id="sos-admin"></div>
+    </div>
 
     <!-- DEMANDES DE RENFORT ENTRE AGENTS (liste uniquement — la saisie se fait via le bouton "Espace agents" de l'accueil) -->
     <div style="background:#2a1414;border:1px solid #C0392B66;border-radius:14px;padding:16px;margin-bottom:16px;">
@@ -609,6 +632,7 @@ html,body{touch-action:pan-x pan-y;}
 </div>
 
 <!-- BOTTOM NAV -->
+<button id="sos-btn" type="button" aria-label="SOS : maintenir 3 secondes pour alerter la police">🆘</button>
 <div class="bottom-nav">
   <button class="nav-item active" id="nav-accueil" onclick="showPage('accueil')"><span class="nav-icon" style="position:relative;">🏠<span id="point-notif-accueil" style="display:none;position:absolute;top:-2px;right:-4px;width:10px;height:10px;background:#E74C3C;border-radius:50%;border:2px solid #1a1a2e;"></span></span><span class="nav-label" data-t="nav-accueil">Accueil</span></button>
   <button class="nav-item" id="nav-form" onclick="showPage('form')"><span class="nav-icon">🚨</span><span class="nav-label" data-t="nav-signaler">Signaler</span></button>
@@ -627,6 +651,8 @@ html,body{touch-action:pan-x pan-y;}
     <h3 style="color:#FF6B6B;font-size:16px;margin-bottom:14px;" data-t="btn-espace-agents">🛡️ Espace agents</h3>
 
     <div id="renfort-etape-code">
+      <label style="display:block;font-size:12px;color:#9CA3AF;margin-bottom:6px;">Identifiant personnel (facultatif)</label>
+      <input id="renfort-id" type="text" placeholder="matricule ou e-mail" autocapitalize="none" autocomplete="username" style="width:100%;padding:10px;border-radius:8px;border:1px solid #444;background:#0a0a1a;color:white;font-size:14px;margin-bottom:12px;box-sizing:border-box;">
       <label style="display:block;font-size:12px;color:#9CA3AF;margin-bottom:6px;" data-t="renfort-code-label">Code agent</label>
       <input id="renfort-code" type="password" placeholder="••••••••••" style="width:100%;padding:10px;border-radius:8px;border:1px solid #444;background:#0a0a1a;color:white;font-size:14px;margin-bottom:16px;box-sizing:border-box;" onkeydown="if(event.key==='Enter')verifierCodeRenfort()">
       <div style="display:flex;gap:8px;">
@@ -689,18 +715,20 @@ function t(key){return (TRAD[langActuelle]&&TRAD[langActuelle][key])||TRAD.fr[ke
 
 // ===== ENVOI VIA LE SERVEUR (api/envoyer) : les citoyens n'ecrivent plus directement dans la base =====
 async function appelerServeur(action,donnees,avecJeton){
+  const type=avecJeton==='agent'?'agent':'admin';
+  const cleJeton=type==='agent'?'agentToken':'adminToken';
   const corps=Object.assign({action:action},donnees||{});
   const faire=()=>{
     const entetes={'Content-Type':'application/json'};
-    if(avecJeton){const t=sessionStorage.getItem('adminToken');if(t)entetes['Authorization']='Bearer '+t;}
+    if(avecJeton){const t=sessionStorage.getItem(cleJeton);if(t)entetes['Authorization']='Bearer '+t;}
     return fetch('/api/envoyer',{method:'POST',headers:entetes,body:JSON.stringify(corps)});
   };
   let r=await faire();
-  if(r.status===401&&avecJeton&&sessionStorage.getItem('adminRefresh')){
-    if(await renouvelerJeton('admin'))r=await faire();
+  if(r.status===401&&avecJeton&&sessionStorage.getItem(type+'Refresh')){
+    if(await renouvelerJeton(type))r=await faire();
   }
   let d=null;try{d=await r.json();}catch(e){}
-  return {ok:!!(r.ok&&d&&d.ok),statut:r.status,id:(d&&d.id)?d.id:null,erreur:(d&&d.erreur)?d.erreur:null};
+  return {ok:!!(r.ok&&d&&d.ok),statut:r.status,id:(d&&d.id)?d.id:null,erreur:(d&&d.erreur)?d.erreur:null,brut:d};
 }
 function messageErreurServeur(res){
   if(res.statut===429||res.erreur==='trop_de_demandes')return "Trop d'envois en peu de temps, reessayez plus tard";
@@ -727,6 +755,310 @@ function compresserImage(src,maxDim,qualite){
     img.onerror=()=>reject(new Error('image illisible'));
     img.src=src;
   });
+}
+
+// ===== SOS : alerte d'une personne en danger (arrive uniquement aux autorites, sans formulaire) =====
+const SOS_DUREE_APPUI_MS=3000;     // appui long pour eviter les envois par erreur
+const SOS_ATTENTE_GPS_MS=4000;     // on n'attend pas plus longtemps la position avant d'envoyer l'alerte
+let _sosEnCours=false,_sosRaf=null,_sosDebutAppui=0,_sosPreautorise=false,_sosEtat=null;
+
+function initSOS(){
+  const b=document.getElementById('sos-btn');
+  if(!b)return;
+  b.addEventListener('contextmenu',e=>e.preventDefault());
+  b.addEventListener('pointerdown',e=>{
+    e.preventDefault();
+    if(_sosEnCours)return;
+    try{b.setPointerCapture(e.pointerId);}catch(_){}
+    _sosDebutAppui=Date.now();
+    b.classList.add('appui');
+    const boucle=()=>{
+      const p=Math.min(1,(Date.now()-_sosDebutAppui)/SOS_DUREE_APPUI_MS);
+      b.style.setProperty('--p',(p*100)+'%');
+      if(p>=1){_sosRaf=null;b.classList.remove('appui');b.style.setProperty('--p','0%');declencherSOS();return;}
+      _sosRaf=requestAnimationFrame(boucle);
+    };
+    _sosRaf=requestAnimationFrame(boucle);
+  });
+  const relache=()=>{
+    if(!_sosRaf)return;
+    cancelAnimationFrame(_sosRaf);_sosRaf=null;
+    b.classList.remove('appui');b.style.setProperty('--p','0%');
+    if(Date.now()-_sosDebutAppui<600)sosAppuiCourt();
+  };
+  b.addEventListener('pointerup',relache);
+  b.addEventListener('pointercancel',relache);
+}
+// Appui court : on explique, et on demande l'autorisation de localisation maintenant (pas au moment du danger)
+function sosAppuiCourt(){
+  afficherToast('Maintenez le bouton 🆘 pendant 3 secondes pour envoyer un SOS','success');
+  if(!_sosPreautorise&&navigator.geolocation){
+    _sosPreautorise=true;
+    try{navigator.geolocation.getCurrentPosition(()=>{},()=>{},{timeout:8000});}catch(e){}
+  }
+}
+
+async function declencherSOS(){
+  if(_sosEnCours)return;
+  _sosEnCours=true;
+  const e={
+    idLocal:'sos'+Math.random().toString(36).slice(2,12)+Date.now().toString(36),
+    id:null,aPosition:false,precision:null,majs:0,annule:false,positionEnvoyee:false,suivi:null,
+    donnees:{timestamp:Date.now(),appareil:(navigator.userAgent||'').slice(0,100)}
+  };
+  e.donnees.idLocal=e.idLocal;
+  _sosEtat=e;
+  afficherEcranSOS();
+  majEcranSOS('envoi');
+  const suivi=suivrePositionSOS(e);
+  const pos=await Promise.race([suivi.premiere,new Promise(r=>setTimeout(()=>r(null),SOS_ATTENTE_GPS_MS))]);
+  if(pos){
+    e.donnees.lat=pos.lat;e.donnees.lng=pos.lng;e.donnees.precision=Math.round(pos.precision||0)||null;
+    e.aPosition=true;e.precision=pos.precision||null;
+  }else{
+    // la position arrivera peut-etre plus tard : l'alerte part sans attendre, la position est ajoutee ensuite
+    suivi.premiere.then(p=>{if(p)sosNouvellePosition(e,p);});
+  }
+  await envoyerSOS(e);
+}
+
+// Suit la position pendant 60 secondes au maximum ; premiere = premiere position obtenue (ou null)
+function suivrePositionSOS(e){
+  const o={surPosition:null,arreter:()=>{}};
+  o.premiere=new Promise(resolve=>{
+    if(!navigator.geolocation){resolve(null);return;}
+    let premier=true,idSuivi=null;
+    const minuteur=setTimeout(()=>{if(idSuivi!==null)navigator.geolocation.clearWatch(idSuivi);},60000);
+    o.arreter=()=>{clearTimeout(minuteur);if(idSuivi!==null)navigator.geolocation.clearWatch(idSuivi);};
+    try{
+      idSuivi=navigator.geolocation.watchPosition(pos=>{
+        const p={lat:pos.coords.latitude,lng:pos.coords.longitude,precision:pos.coords.accuracy};
+        if(premier){premier=false;resolve(p);}
+        else sosNouvellePosition(e,p);
+      },()=>{if(premier){premier=false;resolve(null);}},{enableHighAccuracy:true,maximumAge:0,timeout:30000});
+    }catch(err){resolve(null);}
+  });
+  e.suivi=o;
+  return o;
+}
+// Complete l'alerte avec une position (premiere position, ou position nettement plus precise)
+function sosNouvellePosition(e,p){
+  if(!e||e.annule)return;
+  const plusPrecise=e.precision&&p.precision&&p.precision<e.precision*0.5&&e.majs<2;
+  if(e.aPosition&&!plusPrecise)return;
+  e.aPosition=true;e.precision=p.precision||e.precision;
+  const pr=Math.round(p.precision||0)||null;
+  if(e.id){
+    e.majs++;
+    appelerServeur('sos_maj',{id:e.id,lat:p.lat,lng:p.lng,precision:pr},false).catch(()=>{});
+  }else{
+    e.donnees.lat=p.lat;e.donnees.lng=p.lng;e.donnees.precision=pr; // pas encore envoyee : la position partira avec l'alerte
+  }
+}
+async function envoyerSOS(e){
+  if(!e||e.annule||e.id)return;
+  e.positionEnvoyee=!!e.donnees.lat;
+  let res=null;
+  try{
+    res=await appelerServeur('sos',e.donnees,false);
+    if(res.ok&&res.id){
+      e.id=res.id;
+      try{localStorage.removeItem('sos_attente');}catch(_){}
+      majEcranSOS('envoye');
+      if(e.aPosition&&!e.positionEnvoyee){
+        e.majs++;
+        appelerServeur('sos_maj',{id:e.id,lat:e.donnees.lat,lng:e.donnees.lng,precision:e.donnees.precision||null},false).catch(()=>{});
+      }
+      return;
+    }
+  }catch(err){res=null;}
+  // pas de reseau, limite atteinte ou serveur indisponible : l'alerte est gardee et renvoyee automatiquement
+  try{localStorage.setItem('sos_attente',JSON.stringify({donnees:e.donnees,ts:Date.now()}));}catch(_){}
+  if(res&&res.statut){
+    // le serveur a repondu : ce n'est pas un probleme de connexion
+    majEcranSOS(res.statut===429?'limite':'echec','code '+(res.erreur||res.statut));
+  }else{
+    majEcranSOS('attente');
+  }
+  clearTimeout(window._sosRetry);
+  window._sosRetry=setTimeout(()=>{
+    if(_sosEtat===e&&!e.id&&!e.annule&&Date.now()-(e.donnees.timestamp||0)<15*60*1000)envoyerSOS(e);
+  },(res&&res.statut===429)?60000:10000);
+}
+// Alerte restee en attente (reseau coupe, application fermee) : renvoyee au retour de la connexion si elle a moins de 15 minutes
+async function reprendreSOSEnAttente(){
+  if(_sosEnCours&&_sosEtat&&!_sosEtat.id&&!_sosEtat.annule){envoyerSOS(_sosEtat);return;}
+  let a=null;
+  try{a=JSON.parse(localStorage.getItem('sos_attente')||'null');}catch(_){}
+  if(!a||!a.donnees)return;
+  if(Date.now()-(a.ts||0)>15*60*1000){try{localStorage.removeItem('sos_attente');}catch(_){}return;}
+  const res=await appelerServeur('sos',a.donnees,false).catch(()=>null);
+  if(res&&res.ok){try{localStorage.removeItem('sos_attente');}catch(_){}afficherToast('Votre alerte SOS a bien été envoyée','success');}
+}
+window.addEventListener('online',()=>{reprendreSOSEnAttente();});
+
+// ---- Ecran affiche a la personne : sobre, sans son ni vibration
+function afficherEcranSOS(){
+  const ancien=document.getElementById('sos-ecran');if(ancien)ancien.remove();
+  const ov=document.createElement('div');
+  ov.id='sos-ecran';
+  ov.innerHTML='<div class="sos-boite"><div class="sos-icone">🆘</div><div id="sos-statut" class="sos-statut">Envoi…</div><div id="sos-detail" class="sos-detail"></div><div id="sos-actions" class="sos-actions"></div><div id="sos-bas" class="sos-bas"></div></div>';
+  document.body.appendChild(ov);
+}
+function majEcranSOS(etat,detail){
+  const st=document.getElementById('sos-statut'),ac=document.getElementById('sos-actions'),bas=document.getElementById('sos-bas'),dt=document.getElementById('sos-detail');
+  if(!st||!ac||!bas)return;
+  if(dt)dt.textContent=detail?String(detail):'';
+  if(etat==='envoi'){st.textContent='Envoi…';ac.innerHTML='';bas.innerHTML='';return;}
+  if(etat==='annule'){st.textContent='Alerte annulée';ac.innerHTML='';bas.innerHTML='<button class="sos-lien" onclick="fermerEcranSOS()">Fermer</button>';return;}
+  st.textContent=etat==='attente'?'Alerte enregistrée — envoi dès que la connexion revient'
+    :etat==='echec'?'Envoi en cours — nouvel essai automatique'
+    :etat==='limite'?"Trop d'envois récents — nouvel essai automatique"
+    :'Alerte envoyée';
+  ac.innerHTML='<button class="sos-btn-sec" onclick="sosAjouterNumero()">📞 Ajouter mon numéro</button><button class="sos-btn-sec" onclick="sosAnnuler()">Annuler l\'alerte</button>';
+  bas.innerHTML='<a class="sos-lien" href="tel:117">Appeler le 117</a><button class="sos-lien" onclick="fermerEcranSOS()">Fermer</button>';
+}
+function fermerEcranSOS(){
+  const ov=document.getElementById('sos-ecran');if(ov)ov.remove();
+  _sosEnCours=false;
+}
+function sosAjouterNumero(){
+  const ac=document.getElementById('sos-actions');if(!ac)return;
+  ac.innerHTML='<input id="sos-tel" type="tel" inputmode="tel" placeholder="Votre numéro" class="sos-champ"><div style="display:flex;gap:8px;"><button class="sos-btn-sec" onclick="sosEnvoyerNumero()">Envoyer</button><button class="sos-btn-sec" onclick="majEcranSOS(_sosEtat&&_sosEtat.id?\'envoye\':\'attente\')">Retour</button></div>';
+  const c=document.getElementById('sos-tel');if(c)c.focus();
+}
+async function sosEnvoyerNumero(){
+  const c=document.getElementById('sos-tel');
+  const tel=((c&&c.value)||'').trim();
+  if(!validerTelephone(tel)){afficherToast('Numéro invalide','error');return;}
+  const e=_sosEtat;if(!e)return;
+  e.donnees.telephone=tel; // si l'alerte n'est pas encore partie, le numero part avec elle
+  if(e.id){
+    const res=await appelerServeur('sos_maj',{id:e.id,telephone:tel},false).catch(()=>({ok:false}));
+    if(!res.ok){afficherToast('Numéro non envoyé, réessayez','error');return;}
+  }
+  afficherToast('Numéro ajouté','success');
+  majEcranSOS(e.id?'envoye':'attente');
+}
+async function sosAnnuler(){
+  const e=_sosEtat;if(!e)return;
+  e.annule=true;
+  if(e.suivi)e.suivi.arreter();
+  try{localStorage.removeItem('sos_attente');}catch(_){}
+  if(e.id)await appelerServeur('sos_maj',{id:e.id,annuler:true},false).catch(()=>{});
+  majEcranSOS('annule');
+}
+
+// ---- Cote autorites : encadre dans le panel admin (lien vers la position, sans carte)
+let sosListe=[];
+async function chargerSOS(){
+  try{
+    const r=await fetch(withAuth(FIREBASE_URL+'/sos.json?orderBy="timestamp"&limitToLast=30'));
+    if(r.ok){
+      const d=await r.json();
+      sosListe=d?Object.entries(d).map(([id,v])=>({id,...v})).filter(x=>x.statut!=='clos'&&Date.now()-(x.timestamp||0)<48*3600*1000).sort((a,b)=>(b.timestamp||0)-(a.timestamp||0)):[];
+    }
+  }catch(e){}
+  afficherSOS();
+}
+function _lienPosition(la,lo){return 'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(la+','+lo);}
+function afficherSOS(){
+  const sect=document.getElementById('sos-section'),el=document.getElementById('sos-admin');
+  if(!sect||!el)return;
+  if(!sosListe.length){sect.style.display='none';el.innerHTML='';return;}
+  sect.style.display='block';
+  const lienStyle='display:inline-block;background:#E74C3C;color:#fff;text-decoration:none;border-radius:8px;padding:8px 12px;font-size:13px;font-weight:700;margin-bottom:6px;';
+  el.innerHTML=sosListe.map(s=>{
+    const la=Number(s.lat),lo=Number(s.lng);
+    const aGps=isFinite(la)&&isFinite(lo)&&s.lat!==null&&s.lat!==undefined&&s.lng!==null&&s.lng!==undefined;
+    let position;
+    if(aGps){
+      position='<a href="'+_lienPosition(la,lo)+'" target="_blank" rel="noopener" style="'+lienStyle+'">📍 Voir la position (Google Maps)</a>'+(s.precision?' <span style="font-size:11px;color:#9CA3AF;">± '+Math.round(Number(s.precision))+' m</span>':'');
+    }else if(s.approx&&isFinite(Number(s.approx.lat))&&s.approx.lat!==null){
+      position='<a href="'+_lienPosition(Number(s.approx.lat),Number(s.approx.lng))+'" target="_blank" rel="noopener" style="'+lienStyle+'">📍 Voir le lieu approximatif (Google Maps)</a><div style="font-size:12px;color:#F5B041;margin-bottom:6px;">⚠️ Position GPS non partagée'+(s.approx.ville?' — lieu estimé : '+_escMsg(s.approx.ville):'')+'</div>';
+    }else{
+      position='<div style="font-size:12px;color:#F5B041;margin-bottom:6px;">⚠️ Position inconnue</div>';
+    }
+    const tel=s.telephone?'<div style="margin-bottom:6px;"><a href="tel:'+_escMsg(String(s.telephone).replace(/[^+0-9]/g,''))+'" style="color:#60A5FA;font-size:13px;text-decoration:none;">📞 '+_escMsg(s.telephone)+'</a></div>':'';
+    const etat=s.statut==='pris_en_charge'?['Pris en charge','#27AE60']:s.statut==='annule'?['Annulé par la personne','#6B7280']:['Nouveau','#E74C3C'];
+    const note=(s.annuleParCitoyen&&s.statut!=='annule')?'<div style="font-size:12px;color:#F5B041;margin-bottom:6px;">⚠️ La personne a annulé l\'alerte</div>':'';
+    const boutons=(s.statut==='nouveau'?'<button onclick="changerStatutSOS(\''+s.id+'\',\'pris_en_charge\')" style="background:rgba(39,174,96,0.15);border:1px solid rgba(39,174,96,0.3);color:#27AE60;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;margin-right:6px;">Pris en charge</button>':'')
+      +'<button onclick="changerStatutSOS(\''+s.id+'\',\'clos\')" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);color:#ccc;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;">Clôturer</button>';
+    return '<div style="background:#1a1a2e;border-left:3px solid '+etat[1]+';border-radius:10px;padding:12px 14px;margin-bottom:8px;">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;"><span style="font-weight:700;font-size:14px;">🆘 SOS</span><span style="font-size:10px;background:'+etat[1]+';color:white;padding:3px 8px;border-radius:20px;font-weight:700;">'+etat[0]+'</span></div>'
+      +position+tel+note
+      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;"><span style="font-size:11px;color:#6B7280;">⏱ '+calculerTemps(s.timestamp)+'</span><span>'+boutons+'</span></div></div>';
+  }).join('');
+}
+async function changerStatutSOS(id,statut){
+  try{
+    const r=await fetch(withAuth(FIREBASE_URL+'/sos/'+id+'.json'),{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({statut:statut,majTs:Date.now()})});
+    if(!r.ok)throw new Error('refusé ('+r.status+')');
+    afficherToast(statut==='clos'?'SOS clôturé':'SOS pris en charge','success');
+    chargerSOS();
+  }catch(e){afficherToast('Erreur','error');}
+}
+
+// ===== NOTIFICATIONS PUSH (Firebase Cloud Messaging) : alertes meme quand l'application est fermee =====
+const FCM_VAPID='BEAZO0PTimwZGCi_XjP1BuIqUTcVRkqNp3hvlt4LbVaQYesp7-FNbkWpWSEtfrOJnrqJ0Aa_4dKcxEBiizfA8OI';
+const FCM_SDK='https://www.gstatic.com/firebasejs/10.12.2/';
+let _fcm=null;
+function fcmConfig(){return {apiKey:FIREBASE_API_KEY,projectId:'alertcitoyen-daf62',messagingSenderId:'1076267731243',appId:'1:1076267731243:web:e741298f02bd660e541d6e'};}
+function pushPossible(){return ('serviceWorker' in navigator)&&('PushManager' in window)&&('Notification' in window);}
+// Le code Firebase n'est charge qu'au moment d'activer les notifications (le demarrage hors connexion n'en depend pas)
+async function chargerFCM(){
+  if(_fcm)return _fcm;
+  const mods=await Promise.all([import(FCM_SDK+'firebase-app.js'),import(FCM_SDK+'firebase-messaging.js')]);
+  const appMod=mods[0],msgMod=mods[1];
+  if(msgMod.isSupported&&!(await msgMod.isSupported()))throw new Error('push non supporte');
+  const app=appMod.getApps().length?appMod.getApp():appMod.initializeApp(fcmConfig());
+  _fcm={getToken:msgMod.getToken,messaging:msgMod.getMessaging(app)};
+  return _fcm;
+}
+// groupe : 'citoyens' (alertes officielles) ou 'autorites' (SOS, signalements, demandes de renfort ; reserve aux comptes autorises)
+async function activerPush(groupe){
+  try{
+    if(!pushPossible())return {ok:false,raison:'non_supporte'};
+    if(Notification.permission==='default')await Notification.requestPermission();
+    if(Notification.permission!=='granted')return {ok:false,raison:'refuse'};
+    const reg=await navigator.serviceWorker.ready;
+    const f=await chargerFCM();
+    const token=await f.getToken(f.messaging,{vapidKey:FCM_VAPID,serviceWorkerRegistration:reg});
+    if(!token)return {ok:false,raison:'pas_de_jeton'};
+    const jeton=groupe==='autorites'?(sessionStorage.getItem('adminToken')?true:'agent'):false;
+    const res=await appelerServeur('push_abonner',{token:token,groupe:groupe},jeton);
+    if(!res.ok)return {ok:false,raison:'serveur_'+(res.erreur||res.statut)};
+    try{localStorage.setItem('push_jeton',token);localStorage.setItem('push_groupe',groupe);}catch(_){}
+    return {ok:true};
+  }catch(e){return {ok:false,raison:'erreur'};}
+}
+// Au demarrage : renouvelle l'abonnement (le jeton du telephone peut changer) ; abonne en silence si la permission avait deja ete accordee
+async function rafraichirPush(){
+  try{
+    if(!pushPossible()||Notification.permission!=='granted')return;
+    let groupe=localStorage.getItem('push_groupe');
+    if(groupe==='autorites'&&!sessionStorage.getItem('adminToken')&&!sessionStorage.getItem('agentToken'))groupe='citoyens';
+    await activerPush(groupe||'citoyens');
+  }catch(e){}
+}
+// Deconnexion d'un compte autorise : le telephone ne recoit plus les alertes des autorites
+function desabonnerPushAutorites(){
+  try{
+    const token=localStorage.getItem('push_jeton');
+    if(token&&localStorage.getItem('push_groupe')==='autorites'){
+      appelerServeur('push_desabonner',{token:token,groupe:'autorites'},sessionStorage.getItem('adminToken')?true:'agent').catch(()=>{});
+    }
+    localStorage.setItem('push_groupe','citoyens');
+  }catch(e){}
+}
+// Verifie que le compte connecte est bien dans la liste des autorites (sinon ses actions seront refusees)
+async function verifierCompteAutorise(){
+  try{
+    const res=await appelerServeur('moi',{},true);
+    if(res.ok&&res.brut&&res.brut.autorite===false){
+      afficherToast("⚠️ Ce compte n'est pas dans la liste des autorités (fin de l'identifiant : "+String(res.brut.uid||'').slice(-6)+")",'error');
+    }
+  }catch(e){}
 }
 
 // ===== MESSAGES : retour a la ligne + modification pendant 5 minutes =====
@@ -915,7 +1247,7 @@ Object.assign(TRAD.fr,{
   'param-langue':'🌍 Langue','param-confidentialite':'🔒 Confidentialité',
   'conf-titre':'Confidentialité et protection des données',
   'conf-s1-titre':'👤 Qui gère cette application ?','conf-s1-texte':'AlertCitoyen est un réseau d\'alerte citoyenne fonctionnant en lien avec les forces de l\'ordre, destiné à faciliter le signalement d\'incidents et la diffusion d\'alertes de sécurité publique.',
-  'conf-s2-titre':'📋 Quelles données sont collectées ?','conf-s2-l1':'La position géographique approximative d\'un incident signalé','conf-s2-l2':'Une photo et une description, pour un avis de recherche publié par la Police','conf-s2-l3':'Le lieu, la date et le numéro de téléphone d\'un témoin signalant avoir vu une personne recherchée','conf-s2-l4':'Le matricule et la position GPS d\'un agent effectuant une demande de renfort','conf-s2-l5':'Des informations techniques enregistrées avec chaque signalement : adresse IP, type d\'appareil, langue, fuseau horaire et taille d\'écran, afin de limiter les fausses alertes',
+  'conf-s2-titre':'📋 Quelles données sont collectées ?','conf-s2-l1':'La position géographique approximative d\'un incident signalé','conf-s2-l2':'Une photo et une description, pour un avis de recherche publié par la Police','conf-s2-l3':'Le lieu, la date et le numéro de téléphone d\'un témoin signalant avoir vu une personne recherchée','conf-s2-l4':'Le matricule et la position GPS d\'un agent effectuant une demande de renfort','conf-s2-l7':'Si vous activez les notifications : un identifiant technique de votre téléphone est enregistré par le service de notification de Google (Firebase) pour vous envoyer les alertes','conf-s2-l6':'En cas d\'alerte SOS : votre position (et votre numéro si vous choisissez de l\'ajouter), visibles uniquement par les autorités','conf-s2-l5':'Des informations techniques enregistrées avec chaque signalement : adresse IP, type d\'appareil, langue, fuseau horaire et taille d\'écran, afin de limiter les fausses alertes',
   'conf-s3-titre':'🕵️ Ce qui reste anonyme','conf-s3-texte':'Un citoyen qui signale un incident ne fournit jamais son identité. Les signalements sont anonymes par défaut.',
   'conf-s4-titre':'🎯 Pourquoi ces données sont-elles collectées ?','conf-s4-texte':'Exclusivement pour la sécurité publique et la coordination avec les autorités compétentes. Aucune donnée n\'est vendue, partagée à des fins commerciales, ou utilisée pour de la publicité.',
   'conf-s5-titre':'🔐 Qui peut accéder aux données ?','conf-s5-texte':'Les données sensibles (demandes de renfort, position des agents) ne sont accessibles qu\'aux agents authentifiés par un compte individuel sécurisé. Les alertes officielles et avis de recherche sont publics par nature.',
@@ -959,7 +1291,7 @@ Object.assign(TRAD.en,{
   'param-langue':'🌍 Language','param-confidentialite':'🔒 Privacy',
   'conf-titre':'Privacy and data protection',
   'conf-s1-titre':'👤 Who runs this application?','conf-s1-texte':'AlertCitoyen is a citizen alert network working alongside law enforcement, designed to facilitate incident reporting and the distribution of public safety alerts.',
-  'conf-s2-titre':'📋 What data is collected?','conf-s2-l1':'The approximate geographic location of a reported incident','conf-s2-l2':'A photo and description, for a missing person notice published by the Police','conf-s2-l3':'The location, date and phone number of a witness reporting having seen a missing person','conf-s2-l4':'The badge number and GPS position of an officer making a backup request','conf-s2-l5':'Technical information saved with each report: IP address, device type, language, time zone and screen size, to help limit false alerts',
+  'conf-s2-titre':'📋 What data is collected?','conf-s2-l1':'The approximate geographic location of a reported incident','conf-s2-l2':'A photo and description, for a missing person notice published by the Police','conf-s2-l3':'The location, date and phone number of a witness reporting having seen a missing person','conf-s2-l4':'The badge number and GPS position of an officer making a backup request','conf-s2-l7':'If you enable notifications: a technical identifier of your phone is stored by Google\'s notification service (Firebase) to send you alerts','conf-s2-l6':'In case of an SOS alert: your location (and your phone number if you choose to add it), visible only to the authorities','conf-s2-l5':'Technical information saved with each report: IP address, device type, language, time zone and screen size, to help limit false alerts',
   'conf-s3-titre':'🕵️ What remains anonymous','conf-s3-texte':'A citizen reporting an incident never provides their identity. Reports are anonymous by default.',
   'conf-s4-titre':'🎯 Why is this data collected?','conf-s4-texte':'Exclusively for public safety and coordination with the relevant authorities. No data is sold, shared for commercial purposes, or used for advertising.',
   'conf-s5-titre':'🔐 Who can access the data?','conf-s5-texte':'Sensitive data (backup requests, officer positions) is only accessible to officers authenticated through a secure individual account. Official alerts and missing person notices are public by nature.',
@@ -1003,7 +1335,7 @@ Object.assign(TRAD.ar,{
   'param-langue':'🌍 اللغة','param-confidentialite':'🔒 الخصوصية',
   'conf-titre':'الخصوصية وحماية البيانات',
   'conf-s1-titre':'👤 من يدير هذا التطبيق؟','conf-s1-texte':'AlertCitoyen هي شبكة تنبيه للمواطنين تعمل بالتعاون مع قوات الأمن، مصممة لتسهيل الإبلاغ عن الحوادث ونشر تنبيهات السلامة العامة.',
-  'conf-s2-titre':'📋 ما هي البيانات التي يتم جمعها؟','conf-s2-l1':'الموقع الجغرافي التقريبي للحادث المُبلغ عنه','conf-s2-l2':'صورة ووصف، لبلاغ بحث عن شخص منشور من قبل الشرطة','conf-s2-l3':'مكان وتاريخ ورقم هاتف الشاهد الذي يُبلغ عن رؤيته لشخص مفقود','conf-s2-l4':'الرقم التسلسلي والموقع الجغرافي للضابط الذي يقدم طلب تعزيزات','conf-s2-l5':'معلومات تقنية تُسجَّل مع كل بلاغ: عنوان IP ونوع الجهاز واللغة والمنطقة الزمنية وحجم الشاشة، للحد من البلاغات الكاذبة',
+  'conf-s2-titre':'📋 ما هي البيانات التي يتم جمعها؟','conf-s2-l1':'الموقع الجغرافي التقريبي للحادث المُبلغ عنه','conf-s2-l2':'صورة ووصف، لبلاغ بحث عن شخص منشور من قبل الشرطة','conf-s2-l3':'مكان وتاريخ ورقم هاتف الشاهد الذي يُبلغ عن رؤيته لشخص مفقود','conf-s2-l4':'الرقم التسلسلي والموقع الجغرافي للضابط الذي يقدم طلب تعزيزات','conf-s2-l7':'عند تفعيل الإشعارات: يُسجَّل معرّف تقني لهاتفك لدى خدمة الإشعارات من Google (Firebase) لإرسال التنبيهات إليك','conf-s2-l6':'عند إرسال تنبيه SOS: موقعك (ورقم هاتفك إذا اخترت إضافته)، ولا يظهر إلا للسلطات','conf-s2-l5':'معلومات تقنية تُسجَّل مع كل بلاغ: عنوان IP ونوع الجهاز واللغة والمنطقة الزمنية وحجم الشاشة، للحد من البلاغات الكاذبة',
   'conf-s3-titre':'🕵️ ما يبقى مجهولاً','conf-s3-texte':'المواطن الذي يُبلغ عن حادث لا يقدم هويته أبداً. البلاغات مجهولة الهوية افتراضياً.',
   'conf-s4-titre':'🎯 لماذا يتم جمع هذه البيانات؟','conf-s4-texte':'حصرياً من أجل السلامة العامة والتنسيق مع السلطات المعنية. لا يتم بيع أي بيانات أو مشاركتها لأغراض تجارية أو استخدامها للإعلان.',
   'conf-s5-titre':'🔐 من يمكنه الوصول إلى البيانات؟','conf-s5-texte':'البيانات الحساسة (طلبات التعزيزات، مواقع الضباط) لا يمكن الوصول إليها إلا من قبل الضباط المصادق عليهم عبر حساب فردي آمن. التنبيهات الرسمية وبلاغات البحث عامة بطبيعتها.',
@@ -1101,7 +1433,7 @@ function activerNotifications(){
   if('Notification' in window){
     Notification.requestPermission().then(perm=>{
       document.getElementById('notif-banner').classList.remove('visible');
-      if(perm==='granted'){afficherToast('🔔 Notifications activées !','success');}
+      if(perm==='granted'){afficherToast('🔔 Notifications activées !','success');activerPush(sessionStorage.getItem('adminToken')?'autorites':'citoyens');}
       else{afficherToast('Notifications refusées','error');}
     });
   }
@@ -1340,6 +1672,7 @@ async function publierAlerteOfficielle(){
     const r=await fetch(withAuth(FIREBASE_URL+'/alertes_officielles.json'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(alerte)});
     if(!r.ok){const t=await r.text().catch(()=>'');throw new Error('Firebase a refusé l\'écriture ('+r.status+') '+t);}
     afficherToast('📢 Alerte officielle publiée !','success');
+    r.json().then(d=>{if(d&&d.name)appelerServeur('push_alerte',{id:d.name},true).catch(()=>{});}).catch(()=>{});
     document.getElementById('alerte-type').value='';
     document.getElementById('alerte-message').value='';
     document.getElementById('alerte-zone').value='';
@@ -1624,6 +1957,7 @@ async function envoyerDemandeRenfort(type,matricule,lieu,message,urgence){
     const r=await fetch(withAgentAuth(FIREBASE_URL+'/demandes_renfort.json'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(demande)});
     if(!r.ok)throw new Error('Firebase a refusé l\'écriture ('+r.status+')');
     afficherToast(position?'🆘 Demande envoyée avec votre position':'🆘 Demande envoyée (position non disponible)','success');
+    r.json().then(d=>{if(d&&d.name)appelerServeur('push_renfort',{id:d.name},'agent').catch(()=>{});}).catch(()=>{});
     return true;
   }catch(e){console.error('Erreur demande de renfort:',e);afficherToast('Erreur d\'envoi — voir la console','error');return false;}
 }
@@ -1636,6 +1970,7 @@ function withAgentAuth(url){
 
 // ===== ACCES RAPIDE DEPUIS L'ACCUEIL (protégé par un vrai compte Firebase partagé "agent") =====
 function ouvrirModalRenfortAccueil(){
+  const rid=document.getElementById('renfort-id');if(rid)rid.value='';
   document.getElementById('renfort-code').value='';
   document.getElementById('renfort-etape-code').style.display='block';
   document.getElementById('renfort-etape-form').style.display='none';
@@ -1651,6 +1986,14 @@ function ouvrirModalRenfortAccueil(){
 function fermerModalRenfortAccueil(){
   document.getElementById('modal-renfort-accueil').style.display='none';
 }
+// Identifiant saisi (matricule ou e-mail) -> adresse du compte ; vide = compte partage de l'equipe
+function emailAgent(saisie){
+  const v=String(saisie||'').trim().toLowerCase();
+  if(!v)return RENFORT_ACCOUNT_EMAIL;
+  if(v.indexOf('@')>=0)return v;
+  const id=v.replace(/[^a-z0-9._-]/g,'');
+  return id?id+'@alertcitoyen.local':RENFORT_ACCOUNT_EMAIL;
+}
 async function verifierCodeRenfort(){
   const code=document.getElementById('renfort-code').value;
   if(!code){afficherToast('Entrez le code agent','error');return;}
@@ -1659,7 +2002,7 @@ async function verifierCodeRenfort(){
   try{
     const r=await fetch('https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key='+FIREBASE_API_KEY,{
       method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({email:RENFORT_ACCOUNT_EMAIL,password:code,returnSecureToken:true})
+      body:JSON.stringify({email:emailAgent((document.getElementById('renfort-id')||{value:''}).value),password:code,returnSecureToken:true})
     });
     const data=await r.json();
     if(!r.ok){
@@ -1706,6 +2049,7 @@ function naviguer(page){
   const ne=document.getElementById('nav-'+page);if(ne)ne.classList.add('active');
   if(page==='accueil'||page==='dashboard')chargerIncidents();
   if(page==='badges')afficherBadges();
+  const sb=document.getElementById('sos-btn');if(sb)sb.style.display=(page==='admin'||page==='login'||page==='archives')?'none':'flex';
   window.scrollTo(0,0);
 }
 
@@ -1915,9 +2259,23 @@ async function verifierAdmin(){
     sessionStorage.setItem('admin','ok');
     _memoriserSession('admin',data);
     sessionStorage.setItem('adminEmail',data.email);
+    // Le compte doit avoir le role « admin » : un compte « agent » ou inconnu ne peut pas ouvrir le panel
+    const verif=await appelerServeur('moi',{},true).catch(()=>null);
+    if(verif&&verif.ok&&verif.brut&&verif.brut.role!=='admin'){
+      ['admin','adminToken','adminRefresh','adminExp','adminEmail'].forEach(k=>sessionStorage.removeItem(k));
+      afficherToast(verif.brut.role==='agent'?"Ce compte est réservé à l'envoi de demandes de renfort":"Ce compte n'est pas autorisé (fin de l'identifiant : "+String(verif.brut.uid||'').slice(-6)+")",'error');
+      document.getElementById('admin-password').value='';
+      if(btn){btn.disabled=false;btn.textContent=t('btn-acceder');}
+      return;
+    }
     document.getElementById('admin-email').value='';
     document.getElementById('admin-password').value='';
     chargerAdmin();
+    activerPush('autorites').then(r=>{
+      if(r.ok)afficherToast('🔔 Alertes des autorités activées sur ce téléphone','success');
+      else if(r.raison==='refuse'&&Notification.permission==='default')verifierNotifications(); // le navigateur n'a pas pu demander : bandeau pour activer en un geste
+      else if(r.raison==='refuse')afficherToast('Notifications refusées : vous ne serez pas alerté quand l\'application est fermée','error');
+    });
     naviguer('admin');
   }catch(e){
     console.error('Erreur de connexion admin:',e);
@@ -2001,11 +2359,12 @@ window.addEventListener('online',_verifierJetons);
     return rep;
   };
 })();
-function deconnecterAdmin(){sessionStorage.removeItem('admin');sessionStorage.removeItem('adminToken');sessionStorage.removeItem('adminRefresh');sessionStorage.removeItem('adminExp');sessionStorage.removeItem('adminEmail');naviguer('accueil');afficherToast('Déconnecté','success');}
+function deconnecterAdmin(){desabonnerPushAutorites();setTimeout(()=>{if(pushPossible()&&Notification.permission==='granted')activerPush('citoyens');},2000);sessionStorage.removeItem('admin');sessionStorage.removeItem('adminToken');sessionStorage.removeItem('adminRefresh');sessionStorage.removeItem('adminExp');sessionStorage.removeItem('adminEmail');naviguer('accueil');afficherToast('Déconnecté','success');}
 
 async function chargerAdmin(){
   await chargerIncidents();
   await chargerDemandesRenfort();
+  await chargerSOS();
   const tous=await chargerFirebase()||[];
   const total=tous.filter(i=>!i.archive).length,hauts=tous.filter(i=>i.urgence==='haute'&&!i.archive).length,valides=tous.filter(i=>i.valide&&!i.archive).length;
   document.getElementById('admin-stats').innerHTML=`
@@ -2294,6 +2653,7 @@ function notifierProprietaire(titre, categorie, lieu, urgence) {
 // ===== SURVEILLANCE ALERTES OFFICIELLES + SIGNALEMENTS CITOYENS =====
 let _dernierTimestampAlerteOff = _tsInit('ac_ts_off');
 let _dernierTimestampRenfort = _tsInit('ac_ts_ren');
+let _dernierTimestampSOS = _tsInit('ac_ts_sos');
 function surveillerAlertesEtSignalements() {
   if (window._survAlertes) return;
   window._survAlertes = true;
@@ -2383,6 +2743,32 @@ function surveillerAlertesEtSignalements() {
                 });
               }
               chargerDemandesRenfort();
+            }
+          }
+        }
+      } catch(e) {}
+      // Nouveau SOS d'un citoyen (autorites uniquement)
+      try {
+        const r4 = await fetch(withAuth(FIREBASE_URL + '/sos.json?orderBy="timestamp"&startAt=' + (_dernierTimestampSOS + 1) + '&limitToFirst=20'));
+        if (!r4.ok) throw new Error('lecture sos refusee');
+        const data4 = await r4.json();
+        if (data4) {
+          for (const id of _cles(data4)) {
+            const d = data4[id];
+            if (d && d.timestamp > _dernierTimestampSOS) {
+              _dernierTimestampSOS = d.timestamp + 1;
+              _tsSave('ac_ts_sos', _dernierTimestampSOS);
+              jouerSonAlerte('haute');
+              afficherToast('🆘 SOS reçu — ouvrez le panel pour voir la position', 'error');
+              if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+                notifSysteme('🆘 SOS — personne en danger', {
+                  body: 'Une alerte SOS vient d\'arriver : ouvrez AlertCitoyen pour voir la position',
+                  vibrate: [400, 150, 400, 150, 400],
+                  requireInteraction: true,
+                  tag: 'sos-' + id
+                });
+              }
+              chargerSOS();
             }
           }
         }
@@ -2944,6 +3330,9 @@ chargerIncidents();
 // Demarrer surveillance automatique des nouvelles alertes (toujours : la notification systeme n'est envoyee que si la permission est accordee)
 surveillerNouvellesAlertes();
 surveillerAlertesEtSignalements();
+initSOS();
+reprendreSOSEnAttente();
+setTimeout(()=>{rafraichirPush();},3000);
 if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
   try { Notification.requestPermission().catch(()=>{}); } catch(e) {}
 }
