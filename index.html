@@ -449,6 +449,17 @@ html,body{touch-action:pan-x pan-y;}
     </div>
 
     <div style="background:#1a1a2e;border:1px solid #333;border-radius:14px;padding:18px;margin-bottom:14px;">
+      <div style="font-weight:700;color:#FFD700;margin-bottom:8px;" data-t="conf-s9-titre">🆘 Le bouton SOS</div>
+      <p style="font-size:13px;color:#ccc;line-height:1.6;white-space:pre-line;" data-t="conf-s9-texte">Le bouton SOS est destiné à une personne en danger immédiat.
+• Un appui de 3 secondes envoie automatiquement votre position GPS et l'heure aux autorités. Si le GPS n'est pas disponible, un lieu approximatif déduit de votre connexion peut être envoyé.
+• Votre numéro de téléphone n'est transmis que si vous choisissez de l'ajouter après l'envoi.
+• L'alerte n'est visible que par les autorités connectées : aucun autre citoyen n'est notifié ni ne voit votre position.
+• L'adresse IP et le type de téléphone sont enregistrés avec l'alerte afin de limiter les abus.
+• Vous pouvez annuler l'alerte après l'envoi.
+• Le bouton ne remplace pas un appel : composez le 117, le 172 ou le 118 si vous le pouvez.</p>
+    </div>
+
+    <div style="background:#1a1a2e;border:1px solid #333;border-radius:14px;padding:18px;margin-bottom:14px;">
       <div style="font-weight:700;color:#FFD700;margin-bottom:8px;" data-t="conf-s6-titre">🗓️ Combien de temps les données sont-elles conservées ?</div>
       <p style="font-size:13px;color:#ccc;line-height:1.6;" data-t="conf-s6-texte">Les alertes officielles et avis de recherche sont automatiquement et définitivement supprimés au bout d'un an.</p>
     </div>
@@ -1036,16 +1047,22 @@ async function activerPush(groupe){
 async function rafraichirPush(){
   try{
     if(!pushPossible()||Notification.permission!=='granted')return;
-    let groupe=localStorage.getItem('push_groupe');
-    if(groupe==='autorites'&&!sessionStorage.getItem('adminToken')&&!sessionStorage.getItem('agentToken'))groupe='citoyens';
-    await activerPush(groupe||'citoyens');
+    const groupe=localStorage.getItem('push_groupe');
+    if(groupe==='autorites'){
+      // Telephone d'une autorite : l'abonnement reste actif cote serveur meme quand la session est fermee.
+      // On ne le renouvelle que si une session est ouverte (le serveur verifie le compte).
+      if(sessionStorage.getItem('adminToken')||sessionStorage.getItem('agentToken'))await activerPush('autorites');
+      return;
+    }
+    await activerPush('citoyens');
   }catch(e){}
 }
 // Deconnexion d'un compte autorise : le telephone ne recoit plus les alertes des autorites
 function desabonnerPushAutorites(){
   try{
     const token=localStorage.getItem('push_jeton');
-    if(token&&localStorage.getItem('push_groupe')==='autorites'){
+    // a la deconnexion, le telephone quitte toujours le groupe des autorites (quel que soit l'etat memorise)
+    if(token){
       appelerServeur('push_desabonner',{token:token,groupe:'autorites'},sessionStorage.getItem('adminToken')?true:'agent').catch(()=>{});
     }
     localStorage.setItem('push_groupe','citoyens');
@@ -1247,7 +1264,7 @@ Object.assign(TRAD.fr,{
   'param-langue':'🌍 Langue','param-confidentialite':'🔒 Confidentialité',
   'conf-titre':'Confidentialité et protection des données',
   'conf-s1-titre':'👤 Qui gère cette application ?','conf-s1-texte':'AlertCitoyen est un réseau d\'alerte citoyenne fonctionnant en lien avec les forces de l\'ordre, destiné à faciliter le signalement d\'incidents et la diffusion d\'alertes de sécurité publique.',
-  'conf-s2-titre':'📋 Quelles données sont collectées ?','conf-s2-l1':'La position géographique approximative d\'un incident signalé','conf-s2-l2':'Une photo et une description, pour un avis de recherche publié par la Police','conf-s2-l3':'Le lieu, la date et le numéro de téléphone d\'un témoin signalant avoir vu une personne recherchée','conf-s2-l4':'Le matricule et la position GPS d\'un agent effectuant une demande de renfort','conf-s2-l7':'Si vous activez les notifications : un identifiant technique de votre téléphone est enregistré par le service de notification de Google (Firebase) pour vous envoyer les alertes','conf-s2-l6':'En cas d\'alerte SOS : votre position (et votre numéro si vous choisissez de l\'ajouter), visibles uniquement par les autorités','conf-s2-l5':'Des informations techniques enregistrées avec chaque signalement : adresse IP, type d\'appareil, langue, fuseau horaire et taille d\'écran, afin de limiter les fausses alertes',
+  'conf-s2-titre':'📋 Quelles données sont collectées ?','conf-s2-l1':'La position géographique approximative d\'un incident signalé','conf-s2-l2':'Une photo et une description, pour un avis de recherche publié par la Police','conf-s2-l3':'Le lieu, la date et le numéro de téléphone d\'un témoin signalant avoir vu une personne recherchée','conf-s2-l4':'Le matricule et la position GPS d\'un agent effectuant une demande de renfort','conf-s9-titre':'🆘 Le bouton SOS','conf-s9-texte':'Le bouton SOS est destiné à une personne en danger immédiat.\n• Un appui de 3 secondes envoie automatiquement votre position GPS et l\'heure aux autorités. Si le GPS n\'est pas disponible, un lieu approximatif déduit de votre connexion peut être envoyé.\n• Votre numéro de téléphone n\'est transmis que si vous choisissez de l\'ajouter après l\'envoi.\n• L\'alerte n\'est visible que par les autorités connectées : aucun autre citoyen n\'est notifié ni ne voit votre position.\n• L\'adresse IP et le type de téléphone sont enregistrés avec l\'alerte afin de limiter les abus.\n• Vous pouvez annuler l\'alerte après l\'envoi.\n• Le bouton ne remplace pas un appel : composez le 117, le 172 ou le 118 si vous le pouvez.','conf-s2-l7':'Si vous activez les notifications : un identifiant technique de votre téléphone est enregistré par le service de notification de Google (Firebase) pour vous envoyer les alertes','conf-s2-l6':'En cas d\'alerte SOS : votre position (et votre numéro si vous choisissez de l\'ajouter), visibles uniquement par les autorités','conf-s2-l5':'Des informations techniques enregistrées avec chaque signalement : adresse IP, type d\'appareil, langue, fuseau horaire et taille d\'écran, afin de limiter les fausses alertes',
   'conf-s3-titre':'🕵️ Ce qui reste anonyme','conf-s3-texte':'Un citoyen qui signale un incident ne fournit jamais son identité. Les signalements sont anonymes par défaut.',
   'conf-s4-titre':'🎯 Pourquoi ces données sont-elles collectées ?','conf-s4-texte':'Exclusivement pour la sécurité publique et la coordination avec les autorités compétentes. Aucune donnée n\'est vendue, partagée à des fins commerciales, ou utilisée pour de la publicité.',
   'conf-s5-titre':'🔐 Qui peut accéder aux données ?','conf-s5-texte':'Les données sensibles (demandes de renfort, position des agents) ne sont accessibles qu\'aux agents authentifiés par un compte individuel sécurisé. Les alertes officielles et avis de recherche sont publics par nature.',
@@ -1291,7 +1308,7 @@ Object.assign(TRAD.en,{
   'param-langue':'🌍 Language','param-confidentialite':'🔒 Privacy',
   'conf-titre':'Privacy and data protection',
   'conf-s1-titre':'👤 Who runs this application?','conf-s1-texte':'AlertCitoyen is a citizen alert network working alongside law enforcement, designed to facilitate incident reporting and the distribution of public safety alerts.',
-  'conf-s2-titre':'📋 What data is collected?','conf-s2-l1':'The approximate geographic location of a reported incident','conf-s2-l2':'A photo and description, for a missing person notice published by the Police','conf-s2-l3':'The location, date and phone number of a witness reporting having seen a missing person','conf-s2-l4':'The badge number and GPS position of an officer making a backup request','conf-s2-l7':'If you enable notifications: a technical identifier of your phone is stored by Google\'s notification service (Firebase) to send you alerts','conf-s2-l6':'In case of an SOS alert: your location (and your phone number if you choose to add it), visible only to the authorities','conf-s2-l5':'Technical information saved with each report: IP address, device type, language, time zone and screen size, to help limit false alerts',
+  'conf-s2-titre':'📋 What data is collected?','conf-s2-l1':'The approximate geographic location of a reported incident','conf-s2-l2':'A photo and description, for a missing person notice published by the Police','conf-s2-l3':'The location, date and phone number of a witness reporting having seen a missing person','conf-s2-l4':'The badge number and GPS position of an officer making a backup request','conf-s9-titre':'🆘 The SOS button','conf-s9-texte':'The SOS button is meant for a person in immediate danger.\n• Holding it for 3 seconds automatically sends your GPS position and the time to the authorities. If GPS is not available, an approximate location deduced from your connection may be sent.\n• Your phone number is only sent if you choose to add it after sending.\n• The alert is visible only to the authorities who are logged in: no other citizen is notified or sees your position.\n• Your IP address and phone type are saved with the alert to limit abuse.\n• You can cancel the alert after sending it.\n• The button does not replace a call: dial 117, 172 or 118 if you can.','conf-s2-l7':'If you enable notifications: a technical identifier of your phone is stored by Google\'s notification service (Firebase) to send you alerts','conf-s2-l6':'In case of an SOS alert: your location (and your phone number if you choose to add it), visible only to the authorities','conf-s2-l5':'Technical information saved with each report: IP address, device type, language, time zone and screen size, to help limit false alerts',
   'conf-s3-titre':'🕵️ What remains anonymous','conf-s3-texte':'A citizen reporting an incident never provides their identity. Reports are anonymous by default.',
   'conf-s4-titre':'🎯 Why is this data collected?','conf-s4-texte':'Exclusively for public safety and coordination with the relevant authorities. No data is sold, shared for commercial purposes, or used for advertising.',
   'conf-s5-titre':'🔐 Who can access the data?','conf-s5-texte':'Sensitive data (backup requests, officer positions) is only accessible to officers authenticated through a secure individual account. Official alerts and missing person notices are public by nature.',
@@ -1335,7 +1352,7 @@ Object.assign(TRAD.ar,{
   'param-langue':'🌍 اللغة','param-confidentialite':'🔒 الخصوصية',
   'conf-titre':'الخصوصية وحماية البيانات',
   'conf-s1-titre':'👤 من يدير هذا التطبيق؟','conf-s1-texte':'AlertCitoyen هي شبكة تنبيه للمواطنين تعمل بالتعاون مع قوات الأمن، مصممة لتسهيل الإبلاغ عن الحوادث ونشر تنبيهات السلامة العامة.',
-  'conf-s2-titre':'📋 ما هي البيانات التي يتم جمعها؟','conf-s2-l1':'الموقع الجغرافي التقريبي للحادث المُبلغ عنه','conf-s2-l2':'صورة ووصف، لبلاغ بحث عن شخص منشور من قبل الشرطة','conf-s2-l3':'مكان وتاريخ ورقم هاتف الشاهد الذي يُبلغ عن رؤيته لشخص مفقود','conf-s2-l4':'الرقم التسلسلي والموقع الجغرافي للضابط الذي يقدم طلب تعزيزات','conf-s2-l7':'عند تفعيل الإشعارات: يُسجَّل معرّف تقني لهاتفك لدى خدمة الإشعارات من Google (Firebase) لإرسال التنبيهات إليك','conf-s2-l6':'عند إرسال تنبيه SOS: موقعك (ورقم هاتفك إذا اخترت إضافته)، ولا يظهر إلا للسلطات','conf-s2-l5':'معلومات تقنية تُسجَّل مع كل بلاغ: عنوان IP ونوع الجهاز واللغة والمنطقة الزمنية وحجم الشاشة، للحد من البلاغات الكاذبة',
+  'conf-s2-titre':'📋 ما هي البيانات التي يتم جمعها؟','conf-s2-l1':'الموقع الجغرافي التقريبي للحادث المُبلغ عنه','conf-s2-l2':'صورة ووصف، لبلاغ بحث عن شخص منشور من قبل الشرطة','conf-s2-l3':'مكان وتاريخ ورقم هاتف الشاهد الذي يُبلغ عن رؤيته لشخص مفقود','conf-s2-l4':'الرقم التسلسلي والموقع الجغرافي للضابط الذي يقدم طلب تعزيزات','conf-s9-titre':'🆘 زر SOS','conf-s9-texte':'زر SOS مخصص للشخص الموجود في خطر مباشر.\n• الضغط المطوّل لمدة 3 ثوانٍ يرسل تلقائيًا موقعك الجغرافي (GPS) والوقت إلى السلطات. وإذا لم يكن GPS متاحًا فقد يُرسَل موقع تقريبي مستنتج من اتصالك.\n• لا يُرسَل رقم هاتفك إلا إذا اخترت إضافته بعد الإرسال.\n• لا يظهر التنبيه إلا للسلطات المتصلة: لا يتم إشعار أي مواطن آخر ولا يرى موقعك.\n• يُسجَّل عنوان IP ونوع الهاتف مع التنبيه للحد من إساءة الاستخدام.\n• يمكنك إلغاء التنبيه بعد إرساله.\n• لا يغني الزر عن الاتصال: اتصل بالرقم 117 أو 172 أو 118 إذا استطعت.','conf-s2-l7':'عند تفعيل الإشعارات: يُسجَّل معرّف تقني لهاتفك لدى خدمة الإشعارات من Google (Firebase) لإرسال التنبيهات إليك','conf-s2-l6':'عند إرسال تنبيه SOS: موقعك (ورقم هاتفك إذا اخترت إضافته)، ولا يظهر إلا للسلطات','conf-s2-l5':'معلومات تقنية تُسجَّل مع كل بلاغ: عنوان IP ونوع الجهاز واللغة والمنطقة الزمنية وحجم الشاشة، للحد من البلاغات الكاذبة',
   'conf-s3-titre':'🕵️ ما يبقى مجهولاً','conf-s3-texte':'المواطن الذي يُبلغ عن حادث لا يقدم هويته أبداً. البلاغات مجهولة الهوية افتراضياً.',
   'conf-s4-titre':'🎯 لماذا يتم جمع هذه البيانات؟','conf-s4-texte':'حصرياً من أجل السلامة العامة والتنسيق مع السلطات المعنية. لا يتم بيع أي بيانات أو مشاركتها لأغراض تجارية أو استخدامها للإعلان.',
   'conf-s5-titre':'🔐 من يمكنه الوصول إلى البيانات؟','conf-s5-texte':'البيانات الحساسة (طلبات التعزيزات، مواقع الضباط) لا يمكن الوصول إليها إلا من قبل الضباط المصادق عليهم عبر حساب فردي آمن. التنبيهات الرسمية وبلاغات البحث عامة بطبيعتها.',
@@ -2378,10 +2395,13 @@ async function chargerAdmin(){
   carteInstance=L.map('carte-admin').setView([8.0,0.0],5);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap'}).addTo(carteInstance);
   const marqueurs=[];
+  const marqueursCarte=[];
   incidents.forEach(inc=>{
     if(!coordsValides(inc))return;
     const c=C[inc.urgence]||'#E67E22';
-    const m=L.circleMarker([inc.lat,inc.lng],{radius:inc.urgence==='haute'?14:inc.urgence==='moyenne'?10:7,fillColor:c,color:'#fff',weight:2,opacity:1,fillOpacity:0.8}).addTo(carteInstance);
+    const rayon=inc.urgence==='haute'?14:inc.urgence==='moyenne'?10:7;
+    const m=L.circleMarker([inc.lat,inc.lng],{radius:rayon,fillColor:c,color:'#fff',weight:2,opacity:1,fillOpacity:0.8}).addTo(carteInstance);
+    marqueursCarte.push({marker:m,lat:inc.lat,lng:inc.lng,rayon:rayon});
     m.bindPopup(`<b>${inc.titre}</b><br>${inc.categorie}${inc.lieu?'<br>📍 '+inc.lieu:''}<br>${calculerTemps(inc.timestamp)}`);
     marqueurs.push([inc.lat,inc.lng]);
   });
@@ -2392,6 +2412,7 @@ async function chargerAdmin(){
     Object.values(a.signalements).forEach(s=>{
       if(!s.lat||!s.lng)return;
       const m=L.circleMarker([s.lat,s.lng],{radius:9,fillColor:'#8E44AD',color:'#fff',weight:2,opacity:1,fillOpacity:0.85}).addTo(carteInstance);
+      marqueursCarte.push({marker:m,lat:s.lat,lng:s.lng,rayon:9});
       m.bindPopup(`👁 <b>Signalement — ${a.nom}</b><br>📍 ${s.lieu}${s.quand?'<br>🕐 '+s.quand:''}${s.telephone?'<br>📞 '+s.telephone:''}`);
       marqueurs.push([s.lat,s.lng]);
     });
@@ -2400,6 +2421,8 @@ async function chargerAdmin(){
   if(marqueurs.length>0){
     try{carteInstance.fitBounds(marqueurs,{padding:[20,20],maxZoom:12});}catch(e){}
   }
+  carteInstance.on('zoomend',()=>repartirMarqueursCarte(carteInstance,marqueursCarte));
+  repartirMarqueursCarte(carteInstance,marqueursCarte);
 
   const adminIncidents=tous.filter(i=>!i.archive).sort((a,b)=>(b.timestamp||0)-(a.timestamp||0));
   window._adminIncidents = adminIncidents;
@@ -2407,6 +2430,27 @@ async function chargerAdmin(){
   if(!adminIncidents.length){liste.innerHTML='<div class="empty-state"><div class="empty-icon">📋</div><p>Aucun signalement.</p></div>';return;}
   renderAdminCards(adminIncidents);
   adminIncidents.forEach(inc => { if(inc.codeAlerte) chargerMessagesAdmin(inc.codeAlerte||inc.id); });
+}
+
+// Plusieurs points au meme endroit (ex. deux signalements « Notse ») : on les ecarte en cercle pour que chacun reste visible
+function repartirMarqueursCarte(carte,entrees){
+  try{
+    const groupes={};
+    entrees.forEach(e=>{const k=Number(e.lat).toFixed(4)+','+Number(e.lng).toFixed(4);(groupes[k]=groupes[k]||[]).push(e);});
+    Object.keys(groupes).forEach(k=>{
+      const g=groupes[k];
+      if(g.length===1){g[0].marker.setLatLng([g[0].lat,g[0].lng]);return;}
+      const centre=carte.latLngToContainerPoint([g[0].lat,g[0].lng]);
+      const rmax=Math.max.apply(null,g.map(e=>e.rayon));
+      // distance entre deux voisins >= 2 x rayon + 2 pixels : aucun point n'en cache un autre
+      const R=Math.max(rmax+2,(rmax+1)/Math.sin(Math.PI/g.length));
+      g.forEach((e,i)=>{
+        const ang=-Math.PI/2+2*Math.PI*i/g.length;
+        const pt=L.point(centre.x+R*Math.cos(ang),centre.y+R*Math.sin(ang));
+        e.marker.setLatLng(carte.containerPointToLatLng(pt));
+      });
+    });
+  }catch(e){}
 }
 
 function renderAdminCards(listeIncidents) {
@@ -2881,7 +2925,7 @@ const KB = [
   // QU'EST-CE QUE ALERTCITOYEN
   { mots: ['quoi','c est','cest','alertcitoyen','alert','citoyen','application','app','plateforme','présente','presente','presentation'], rep: "AlertCitoyen est une application de securite citoyenne creee pour permettre aux habitants de signaler anonymement tout acte criminel, suspect ou toute situation d'urgence. Elle connecte les citoyens aux autorites en temps reel, avec une carte des incidents, une analyse par intelligence artificielle, et un systeme de recompenses pour les citoyens actifs." },
   // QUI A CREE
-  { mots: ['cree','créé','createur','developpe','qui a','auteur','fait','construit','fondateur'], rep: "AlertCitoyen a ete cree par Amegble Amekossi, etudiant en 1ere annee de Biologie a Lome au Togo, en juin 2026. L'application a ete developpee entierement depuis un telephone mobile. Un projet citoyen, pour les citoyens !" },
+  { mots: ['cree','créé','createur','developpe','qui a','auteur','fait','construit','fondateur','concepteur','developpeur','inventeur','qui est derriere','amegbleame','kossi','proprietaire','qui est le createur','createur d alertcitoyen','createur de l application','createur de alertcitoyen','qui est le developpeur','qui est le concepteur','qui est le fondateur','qui est l auteur','qui a cree','qui a developpe','qui a fait'], rep: "AlertCitoyen a été créé par <b>AMEGBLEAME Kossi</b>, un jeune inspiré par les problèmes de son pays, qui a développé AlertCitoyen pour la sécurité du Togo 🇹🇬." },
   // URGENCES GENERALES
   { mots: ['urgence','secours','aide','danger','help','appel','numero','en danger','je suis en danger','ne peux pas parler','ne peut pas parler','impossible de parler'], rep: "En cas d'urgence, appelez : Police 117, Gendarmerie 172, Pompiers 118 (boutons d'appel direct sur la page d'accueil de l'application).<br><br>🆘 <b>Si vous êtes en danger et ne pouvez pas parler</b> : maintenez le bouton rouge <b>SOS</b> (en bas à droite de l'écran) pendant 3 secondes. Votre position est envoyée automatiquement aux autorités, sans rien écrire. Demandez-moi « comment utiliser le SOS » pour le détail." },
   // PAYS SPECIFIQUES
