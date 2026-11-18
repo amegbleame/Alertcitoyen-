@@ -6,7 +6,7 @@ const crypto = require('crypto');
 
 const URL_BASE = process.env.FIREBASE_DATABASE_URL || 'https://alertcitoyen-daf62-default-rtdb.firebaseio.com';
 
-const VERSION = '2026-10-26-comptes-individuels';
+const VERSION = '2026-11-18-trajets';
 
 // --- Comptes autorises : un compte par personne, avec un role ---
 //  admin : panel d'administration complet (SOS, signalements, alertes officielles, reponses de la police)
@@ -18,7 +18,7 @@ const AGENTS_FONDATEURS = ['VLDWJnoc3YRizgGkagGPxhMuWru2'];
 // Pour retirer une personne : supprimer son noeud (effet immediat).
 
 // --- Reglages (modifiables) ---
-const LIMITES = { incident: 8, message: 40, temoin: 6, coords: 12, sos: 10, sos_maj: 40, push: 20 }; // envois par adresse IP et par heure
+const LIMITES = { incident: 8, message: 40, temoin: 6, coords: 12, sos: 10, sos_maj: 40, push: 20, trajet: 10, trajet_maj: 1500, trajet_fin: 100, trajet_voir: 3000 }; // envois par adresse IP et par heure
 const FENETRE_SEC = 3600;
 const DELAI_EDITION_MS = 5 * 60 * 1000 + 15000; // modification d'un message : 5 minutes (+15 s de marge)
 const DELAI_COORDS_MS = 10 * 60 * 1000;
@@ -346,6 +346,97 @@ async function majSOS(db, c, avantEcriture) {
   return {};
 }
 
+// ----- Trajet partage avec un proche -----
+// Le serveur est le seul a lire/ecrire le noeud  trajets  (ferme aux visiteurs dans les regles Firebase).
+// Deux secrets : l'identifiant (dans le lien envoye au proche, lecture seule) et la cle (reste sur le telephone du voyageur).
+const TRAJET_MAX_MS = 12 * 3600 * 1000;      // un trajet ne peut pas depasser 12 h
+const TRAJET_GRACE_MS = 2 * 3600 * 1000;     // le lien reste valable 2 h apres l'heure d'arrivee prevue
+const TRAJET_RETARD_MS = 10 * 60 * 1000;     // au-dela, la page du proche indique « en retard »
+const hash = (v) => crypto.createHash('sha256').update(String(v)).digest('hex');
+function memeCle(cle, attendu) {
+  if (typeof cle !== 'string' || !/^[A-Za-z0-9_-]{16,64}$/.test(cle) || typeof attendu !== 'string') return false;
+  const a = Buffer.from(hash(cle)), b = Buffer.from(attendu);
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+function finDeVie(t) { return Math.min((t.creeTs || 0) + TRAJET_MAX_MS, (t.arrivee || 0) + TRAJET_GRACE_MS); }
+
+async function creerTrajet(db, c, avantEcriture) {
+  const destination = texte(c.destination, 120);
+  if (!destination) throw erreur(400, 'destination');
+  const maintenant = Date.now();
+  const arrivee = nombre(c.arrivee);
+  if (arrivee === null || arrivee < maintenant - 60000 || arrivee > maintenant + TRAJET_MAX_MS) throw erreur(400, 'heure_arrivee');
+  const prenom = texte(c.prenom, 40);
+  const id = crypto.randomBytes(24).toString('base64url');   // 32 caracteres, impossible a deviner
+  const cle = crypto.randomBytes(24).toString('base64url');
+  const bonnes = coordsOk(c.lat, c.lng);
+  await avantEcriture();
+  await db.ref('trajets/' + id).set({
+    destination, prenom: prenom || null, arrivee, creeTs: maintenant,
+    cleHash: hash(cle), termine: false,
+    lat: bonnes ? c.lat : null, lng: bonnes ? c.lng : null, posTs: bonnes ? maintenant : null
+  });
+  return { id, cle };
+}
+
+async function majTrajet(db, c, avantEcriture) {
+  const id = String(c.id || '');
+  if (!ID.test(id)) throw erreur(400, 'identifiant');
+  if (!coordsOk(c.lat, c.lng)) throw erreur(400, 'coordonnees');
+  const ref = db.ref('trajets/' + id);
+  const snap = await ref.once('value');
+  if (!snap.exists()) throw erreur(404, 'introuvable');
+  const t = snap.val();
+  if (!memeCle(c.cle, t.cleHash)) throw erreur(403, 'cle');
+  if (t.termine || Date.now() > finDeVie(t)) throw erreur(403, 'trajet_termine');
+  await avantEcriture();
+  await ref.update({ lat: c.lat, lng: c.lng, posTs: Date.now(), precision: nombre(c.precision) });
+  return {};
+}
+
+async function finTrajet(db, c, avantEcriture) {
+  const id = String(c.id || '');
+  if (!ID.test(id)) throw erreur(400, 'identifiant');
+  const ref = db.ref('trajets/' + id);
+  const snap = await ref.once('value');
+  if (!snap.exists()) throw erreur(404, 'introuvable');
+  const t = snap.val();
+  if (!memeCle(c.cle, t.cleHash)) throw erreur(403, 'cle');
+  await avantEcriture();
+  // la position est effacee des la fin du trajet
+  await ref.update({ termine: true, finTs: Date.now(), lat: null, lng: null, posTs: null, precision: null });
+  return {};
+}
+
+// Lecture par le proche : ne renvoie jamais la cle ; plus de position une fois le trajet termine ou expire
+async function voirTrajet(db, c, avantEcriture) {
+  const id = String(c.id || '');
+  if (!ID.test(id)) throw erreur(400, 'identifiant');
+  await avantEcriture();
+  const ref = db.ref('trajets/' + id);
+  const snap = await ref.once('value');
+  if (!snap.exists()) throw erreur(404, 'introuvable');
+  const t = snap.val();
+  const maintenant = Date.now();
+  const expire = maintenant > finDeVie(t);
+  if (expire && !t.termine && t.lat !== null && t.lat !== undefined) {
+    try { await ref.update({ lat: null, lng: null, posTs: null, precision: null }); } catch (e) {}
+  }
+  let statut = 'en_cours';
+  if (t.termine) statut = 'arrive';
+  else if (expire) statut = 'expire';
+  else if (maintenant > t.arrivee + TRAJET_RETARD_MS) statut = 'retard';
+  const visible = statut === 'en_cours' || statut === 'retard';
+  return {
+    statut, destination: t.destination, prenom: t.prenom || null, arrivee: t.arrivee, maintenant,
+    lat: visible && typeof t.lat === 'number' ? t.lat : null,
+    lng: visible && typeof t.lng === 'number' ? t.lng : null,
+    posTs: visible && t.posTs ? t.posTs : null,
+    precision: visible && typeof t.precision === 'number' ? t.precision : null,
+    finTs: t.finTs || null
+  };
+}
+
 module.exports = async (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
   if (req.method === 'GET') {
@@ -380,7 +471,7 @@ module.exports = async (req, res) => {
       return repondre(res, 200, { ok: true, role: v.role, autorite: v.role === 'admin', uid: v.uid });
     }
     const role = await roleAppelant(req);
-    const limite = { incident: 'incident', message: 'message', message_modifier: 'message', temoin: 'temoin', temoin_coords: 'coords', sos: 'sos', sos_maj: 'sos_maj', push_abonner: 'push', push_desabonner: 'push', push_alerte: 'push', push_renfort: 'push' }[action];
+    const limite = { incident: 'incident', message: 'message', message_modifier: 'message', temoin: 'temoin', temoin_coords: 'coords', sos: 'sos', sos_maj: 'sos_maj', push_abonner: 'push', push_desabonner: 'push', push_alerte: 'push', push_renfort: 'push', trajet_creer: 'trajet', trajet_maj: 'trajet_maj', trajet_fin: 'trajet_fin', trajet_voir: 'trajet_voir' }[action];
     if (!limite) throw erreur(400, 'action');
     const ip = ipDe(req);
     // la limite par IP n'est comptee qu'au moment d'ecrire : un envoi refuse (donnees invalides) n'use pas le quota
@@ -396,6 +487,10 @@ module.exports = async (req, res) => {
     else if (action === 'push_desabonner') resultat = await desabonnerPush(c, avantEcriture);
     else if (action === 'push_alerte') resultat = await pushAlerte(db, c, role);
     else if (action === 'push_renfort') resultat = await pushRenfort(db, c, role);
+    else if (action === 'trajet_creer') resultat = await creerTrajet(db, c, avantEcriture);
+    else if (action === 'trajet_maj') resultat = await majTrajet(db, c, avantEcriture);
+    else if (action === 'trajet_fin') resultat = await finTrajet(db, c, avantEcriture);
+    else if (action === 'trajet_voir') resultat = await voirTrajet(db, c, avantEcriture);
     else resultat = await majCoordsTemoin(db, c, avantEcriture);
     return repondre(res, 200, Object.assign({ ok: true }, resultat));
   } catch (e) {
