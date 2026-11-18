@@ -127,6 +127,16 @@ body.rtl .incident-card.urgence-basse{border-right-color:#27AE60;}
 @keyframes spin{to{transform:rotate(360deg);}}
 .btn-submit{width:100%;background:var(--rouge);color:#fff;border:none;padding:18px;border-radius:12px;font-size:16px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;margin-top:8px;}
 .btn-submit:disabled{opacity:0.6;cursor:not-allowed;}
+.carte-dep{margin:14px 20px 0;background:linear-gradient(135deg,rgba(39,174,96,0.16),rgba(44,44,62,0.85));border:1px solid rgba(39,174,96,0.35);border-radius:14px;padding:13px 14px;display:flex;align-items:center;gap:12px;cursor:pointer;-webkit-tap-highlight-color:transparent;}
+.carte-dep .cd-ico{font-size:26px;}.carte-dep .cd-txt{flex:1;min-width:0;}.carte-dep .cd-titre{font-weight:700;font-size:15px;}.carte-dep .cd-sub{font-size:12.5px;color:#C9CCD6;margin-top:2px;}.carte-dep .cd-fl{font-size:24px;color:#9CA3AF;}
+.dep-onglets{display:flex;gap:8px;margin:0 0 16px;}.dep-onglet{flex:1;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);color:#D1D5DB;padding:12px 6px;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;}.dep-onglet.actif{background:var(--rouge);border-color:var(--rouge);color:#fff;}
+.dep-chips{display:flex;gap:8px;margin-top:8px;}.dep-chip{background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.12);color:#D1D5DB;border-radius:20px;padding:7px 13px;font-size:13px;cursor:pointer;font-family:'Inter',sans-serif;}
+.dep-note{font-size:12.5px;color:#9CA3AF;line-height:1.5;margin-top:8px;}
+.dep-actif{background:rgba(39,174,96,0.10);border:1px solid rgba(39,174,96,0.35);border-radius:14px;padding:16px;margin-bottom:14px;}
+.dep-actif .da-dest{font-size:19px;font-weight:700;word-break:break-word;margin:4px 0 8px;}.dep-actif .da-ligne{font-size:13.5px;color:#D1D5DB;margin-top:4px;}
+.dep-btn-vert{display:block;width:100%;text-align:center;background:#25D366;color:#073B1C;border:none;padding:15px;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;text-decoration:none;font-family:'Inter',sans-serif;margin-top:12px;}
+.dep-btn-sec{display:block;width:100%;text-align:center;background:rgba(255,255,255,0.08);color:#fff;border:1px solid rgba(255,255,255,0.15);padding:13px;border-radius:12px;font-size:14px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;margin-top:10px;}
+.dep-photo-apercu{max-width:100%;max-height:180px;border-radius:10px;margin-top:10px;display:none;}
 .btn-retour{background:transparent;border:none;color:#9CA3AF;font-size:14px;cursor:pointer;display:flex;align-items:center;gap:6px;margin-bottom:20px;font-family:'Inter',sans-serif;padding:0;}
 
 /* SUCCES */
@@ -257,6 +267,13 @@ html,body{touch-action:pan-x pan-y;}
     </div>
   </div>
 
+  <!-- MES DEPLACEMENTS -->
+  <div class="carte-dep" onclick="showPage('deplacements')" role="button" tabindex="0">
+    <span class="cd-ico">🛡️</span>
+    <div class="cd-txt"><div class="cd-titre" data-t="dep-carte-titre">Mes déplacements</div><div class="cd-sub" data-t="dep-carte-sub">Partagez votre trajet avec un proche</div></div>
+    <span class="cd-fl">›</span>
+  </div>
+
   <!-- INSTALLER L'APP -->
   <div class="install-banner" id="install-banner">
     <span style="font-size:32px;">📲</span>
@@ -300,6 +317,63 @@ html,body{touch-action:pan-x pan-y;}
 
   <div style="text-align:center;padding:20px 20px 40px;">
     <button onclick="ouvrirModalRenfortAccueil()" style="background:none;border:none;color:#3A3A4A;font-size:11px;cursor:pointer;padding:8px;" data-t="btn-espace-agents">🛡️ Espace agents</button>
+  </div>
+</div>
+
+<!-- MES DEPLACEMENTS -->
+<div id="page-deplacements" class="page page-content">
+  <div style="padding:20px;">
+    <button class="btn-retour" onclick="showPage('accueil')">← <span data-t="retour">Retour</span></button>
+    <div style="font-family:'Space Grotesk',sans-serif;font-size:22px;font-weight:700;margin-bottom:6px;" data-t="dep-titre">🛡️ Mes déplacements</div>
+    <p style="font-size:13.5px;color:#C9CCD6;line-height:1.5;margin-bottom:16px;" data-t="dep-intro">Faites suivre votre trajet par un proche, ou envoyez-lui les informations de votre moto ou taxi.</p>
+    <div class="dep-onglets">
+      <button class="dep-onglet actif" id="dep-onglet-trajet" onclick="depOnglet('trajet')" data-t="dep-onglet-trajet">🧭 Trajet partagé</button>
+      <button class="dep-onglet" id="dep-onglet-moto" onclick="depOnglet('moto')" data-t="dep-onglet-moto">🛵 Moto-taxi</button>
+    </div>
+
+    <div id="dep-pane-trajet">
+      <div id="dep-trajet-form">
+        <div class="form-group"><label class="form-label" data-t="dep-dest">Destination</label><input class="form-input" id="dep-dest" type="text" maxlength="120" autocomplete="off" placeholder="Ex : Marché de Hanoukopé"></div>
+        <div class="form-group"><label class="form-label" data-t="dep-heure">Heure d'arrivée prévue</label><input class="form-input" id="dep-heure" type="time">
+          <div class="dep-chips"><button type="button" class="dep-chip" onclick="depPlus(15)">+15 min</button><button type="button" class="dep-chip" onclick="depPlus(30)">+30 min</button><button type="button" class="dep-chip" onclick="depPlus(60)">+1 h</button><button type="button" class="dep-chip" onclick="depPlus(120)">+2 h</button></div></div>
+        <div class="form-group"><label class="form-label" data-t="dep-prenom">Votre prénom (facultatif)</label><input class="form-input" id="dep-prenom" type="text" maxlength="40" autocomplete="off"></div>
+        <div class="form-group"><label class="form-label" data-t="dep-proche">Numéro WhatsApp du proche (facultatif)</label><input class="form-input" id="dep-tel-proche" type="tel" placeholder="+228 XX XX XX XX"><div class="dep-note" data-t="dep-proche-note">Enregistré seulement sur ce téléphone. Sans numéro, vous choisirez le contact dans WhatsApp.</div></div>
+        <button class="btn-primary" id="dep-btn-partager" onclick="depPartagerTrajet()" data-t="dep-partager">📤 Partager mon trajet</button>
+        <div class="dep-note" data-t="dep-note-pos">Votre position est mise à jour tant que l'application reste ouverte. Aucune alerte n'est envoyée à la police.</div>
+      </div>
+      <div id="dep-trajet-actif" style="display:none;">
+        <div class="dep-actif">
+          <div class="da-ligne" data-t="dep-en-route">🟢 Partage en cours</div>
+          <div class="da-dest" id="dep-a-dest"></div>
+          <div class="da-ligne"><span data-t="dep-arrivee-prevue">Arrivée prévue</span> : <strong id="dep-a-heure"></strong></div>
+          <div class="da-ligne"><span data-t="dep-derniere">Dernière position envoyée</span> : <strong id="dep-a-pos">—</strong></div>
+        </div>
+        <a class="dep-btn-vert" id="dep-wa" href="#" target="_blank" rel="noopener" data-t="dep-envoyer-wa">📲 Envoyer le lien par WhatsApp</a>
+        <button class="dep-btn-sec" onclick="depCopierLien()" data-t="dep-copier">🔗 Copier le lien</button>
+        <button class="btn-primary" style="margin-top:14px;" id="dep-btn-arrive" onclick="depTerminerTrajet()" data-t="dep-arrive">✅ Je suis arrivé</button>
+        <div class="dep-note" data-t="dep-note-pos">Votre position est mise à jour tant que l'application reste ouverte. Aucune alerte n'est envoyée à la police.</div>
+      </div>
+    </div>
+
+    <div id="dep-pane-moto" style="display:none;">
+      <div id="dep-moto-form">
+        <div class="form-group"><label class="form-label" data-t="dep-plaque">Plaque d'immatriculation</label><input class="form-input" id="dep-plaque" type="text" maxlength="15" autocomplete="off" autocapitalize="characters" placeholder="Ex : TG 1234 AB"></div>
+        <div class="form-group"><label class="form-label" data-t="dep-conducteur">Nom du conducteur (facultatif)</label><input class="form-input" id="dep-conducteur" type="text" maxlength="60" autocomplete="off"></div>
+        <button class="dep-btn-vert" style="margin-top:0;" onclick="depMotoEnvoyer()" data-t="dep-moto-envoyer">📤 Envoyer à mon proche</button>
+        <div class="dep-note" data-t="dep-moto-note">Ces informations restent sur votre téléphone. Elles ne partent que vers la personne que vous choisissez dans WhatsApp.</div>
+      </div>
+      <div id="dep-moto-actif" style="display:none;">
+        <div class="dep-actif">
+          <div class="da-ligne" data-t="dep-moto-en-cours">🛵 Course enregistrée</div>
+          <div class="da-dest" id="dep-m-plaque"></div>
+          <div class="da-ligne" id="dep-m-cond"></div>
+          <div class="da-ligne" id="dep-m-depuis"></div>
+        </div>
+        <button class="dep-btn-vert" onclick="depMotoPartager()" data-t="dep-moto-renvoyer">📤 Envoyer à nouveau</button>
+        <button class="btn-primary" style="margin-top:14px;" onclick="depMotoTerminer()" data-t="dep-arrive">✅ Je suis arrivé</button>
+        <div class="dep-note" data-t="dep-moto-note">Ces informations restent sur votre téléphone. Elles ne partent que vers la personne que vous choisissez dans WhatsApp.</div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -457,6 +531,18 @@ html,body{touch-action:pan-x pan-y;}
 • L'adresse IP et le type de téléphone sont enregistrés avec l'alerte afin de limiter les abus.
 • Vous pouvez annuler l'alerte après l'envoi.
 • Le bouton ne remplace pas un appel : composez le 117, le 172 ou le 118 si vous le pouvez.</p>
+    </div>
+
+    <div style="background:#1a1a2e;border:1px solid #333;border-radius:14px;padding:18px;margin-bottom:14px;">
+      <div style="font-weight:700;color:#FFD700;margin-bottom:8px;" data-t="conf-s10-titre">🧭 Mes déplacements</div>
+      <p style="font-size:13px;color:#ccc;line-height:1.6;white-space:pre-line;" data-t="conf-s10-texte">Trajet partagé :
+• Votre destination, l'heure d'arrivée prévue, votre prénom (facultatif) et votre position sont enregistrés sur nos serveurs uniquement pour être affichés à votre proche, grâce à un lien privé que vous lui envoyez vous-même. Seules les personnes qui ont ce lien peuvent le voir.
+• Aucune alerte n'est envoyée à la police et aucun autre citoyen n'est prévenu.
+• Votre position n'est mise à jour que tant que l'application reste ouverte.
+• Votre position est effacée quand vous touchez « Je suis arrivé » ; sinon le lien expire quelques heures après l'heure d'arrivée prévue.
+• Le numéro de votre proche reste uniquement sur votre téléphone.
+
+Moto-taxi : la plaque et le nom du conducteur restent sur votre téléphone. Ils ne partent que par WhatsApp, vers la personne que vous choisissez.</p>
     </div>
 
     <div style="background:#1a1a2e;border:1px solid #333;border-radius:14px;padding:18px;margin-bottom:14px;">
@@ -1409,6 +1495,182 @@ function selectLang(lang, label) {
   setLang(lang);
 }
 
+// ===== MES DEPLACEMENTS : trajet partage avec un proche + moto/taxi =====
+const DEP_GRACE_MS=2*3600*1000,DEP_INTERVALLE_MS=30000;
+let _depMinuteur=null,_depEnvoiEnCours=false;
+function _d(fr,en){return langActuelle==='en'?en:fr;}
+function _depLire(c){try{return JSON.parse(localStorage.getItem(c)||'null');}catch(e){return null;}}
+function _depEcrire(c,v){try{if(v===null)localStorage.removeItem(c);else localStorage.setItem(c,JSON.stringify(v));}catch(e){}}
+function _depHeure(ts){try{return new Date(ts).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});}catch(e){return '';}}
+function _depPad(n){return (n<10?'0':'')+n;}
+function depOnglet(n){
+  document.getElementById('dep-pane-trajet').style.display=n==='trajet'?'block':'none';
+  document.getElementById('dep-pane-moto').style.display=n==='moto'?'block':'none';
+  document.getElementById('dep-onglet-trajet').classList.toggle('actif',n==='trajet');
+  document.getElementById('dep-onglet-moto').classList.toggle('actif',n==='moto');
+}
+function depNumeroWhatsApp(brut){
+  let d=String(brut||'').replace(/[^0-9]/g,'');
+  if(d.indexOf('00')===0)d=d.slice(2);
+  if(d.length===8)d='228'+d;
+  return (d.length>=9&&d.length<=15)?d:'';
+}
+function depLienWhatsApp(numero,texte){return 'https://wa.me/'+(numero||'')+'?text='+encodeURIComponent(texte);}
+function depPlus(min){const d=new Date(Date.now()+min*60000);document.getElementById('dep-heure').value=_depPad(d.getHours())+':'+_depPad(d.getMinutes());}
+function depHeureVersTs(val){
+  const m=/^(\d{2}):(\d{2})$/.exec(val||'');if(!m)return null;
+  const d=new Date();d.setHours(+m[1],+m[2],0,0);
+  let ts=d.getTime();if(ts<Date.now()-60000)ts+=86400000;
+  return ts;
+}
+function depPosition(delai){
+  return new Promise(resolve=>{
+    if(!navigator.geolocation){resolve(null);return;}
+    let fini=false;const fin=v=>{if(!fini){fini=true;resolve(v);}};
+    setTimeout(()=>fin(null),delai+1500);
+    try{navigator.geolocation.getCurrentPosition(
+      p=>fin({lat:p.coords.latitude,lng:p.coords.longitude,precision:Math.round(p.coords.accuracy||0)}),
+      ()=>fin(null),{enableHighAccuracy:true,timeout:delai,maximumAge:20000});}catch(e){fin(null);}
+  });
+}
+function depOuvrir(){
+  const pr=_depLire('dep_proche')||{};
+  const f1=document.getElementById('dep-prenom'),f2=document.getElementById('dep-tel-proche');
+  if(f1&&!f1.value&&pr.prenom)f1.value=pr.prenom;
+  if(f2&&!f2.value&&pr.tel)f2.value=pr.tel;
+  depAfficherTrajet();depMotoAfficher();
+}
+function depLien(tr){return location.origin+'/trajet.html?t='+encodeURIComponent(tr.id);}
+function depTexteTrajet(tr){
+  return '🛡️ *AlertCitoyen* — Trajet partagé\nJe suis en route vers '+tr.destination+', arrivée prévue à '+_depHeure(tr.arrivee)+'.\nSuis mon trajet en direct (rien à installer) : '+depLien(tr)+'\nJe te préviens dès que je suis arrivé(e).';
+}
+function depAfficherTrajet(){
+  let tr=_depLire('dep_trajet');
+  if(tr&&Date.now()>tr.arrivee+DEP_GRACE_MS){_depEcrire('dep_trajet',null);tr=null;}
+  document.getElementById('dep-trajet-form').style.display=tr?'none':'block';
+  document.getElementById('dep-trajet-actif').style.display=tr?'block':'none';
+  if(!tr)return;
+  document.getElementById('dep-a-dest').textContent=tr.destination;
+  document.getElementById('dep-a-heure').textContent=_depHeure(tr.arrivee);
+  document.getElementById('dep-a-pos').textContent=tr.dernier?_depHeure(tr.dernier):'—';
+  document.getElementById('dep-wa').href=depLienWhatsApp(tr.numero||'',depTexteTrajet(tr));
+}
+async function depPartagerTrajet(){
+  if(_depEnvoiEnCours)return;
+  const dest=document.getElementById('dep-dest').value.trim();
+  const ts=depHeureVersTs(document.getElementById('dep-heure').value);
+  const prenom=document.getElementById('dep-prenom').value.trim();
+  const telBrut=document.getElementById('dep-tel-proche').value.trim();
+  const num=depNumeroWhatsApp(telBrut);
+  if(!dest){afficherToast(_d('Indiquez votre destination','Enter your destination'),'error');return;}
+  if(ts===null){afficherToast(_d('Indiquez l\'heure d\'arrivée prévue','Enter the expected arrival time'),'error');return;}
+  if(telBrut&&!num){afficherToast(_d('Numéro du proche invalide','Invalid number'),'error');return;}
+  const bouton=document.getElementById('dep-btn-partager');
+  _depEnvoiEnCours=true;bouton.disabled=true;
+  try{
+    const pos=await depPosition(8000);
+    const res=await appelerServeur('trajet_creer',{destination:dest,arrivee:ts,prenom:prenom,lat:pos?pos.lat:undefined,lng:pos?pos.lng:undefined},false);
+    if(!res.ok){
+      afficherToast(res.erreur==='heure_arrivee'?_d('Choisissez une heure dans les 12 prochaines heures','Pick a time within the next 12 hours'):messageErreurServeur(res),'error');
+      return;
+    }
+    _depEcrire('dep_proche',{prenom:prenom,tel:telBrut});
+    _depEcrire('dep_trajet',{id:res.brut.id,cle:res.brut.cle,destination:dest,arrivee:ts,prenom:prenom,numero:num,dernier:pos?Date.now():0});
+    depAfficherTrajet();depDemarrerSuivi();
+    afficherToast(pos?_d('Trajet prêt : envoyez le lien à votre proche','Trip ready: send the link to your contact'):_d('Position introuvable : autorisez la localisation du téléphone','Location not found: allow location access'),pos?'success':'error');
+  }catch(e){
+    afficherToast(_d('Envoi impossible, vérifiez votre connexion','Could not send, check your connection'),'error');
+  }finally{_depEnvoiEnCours=false;bouton.disabled=false;}
+}
+function depCopierLien(){
+  const tr=_depLire('dep_trajet');if(!tr)return;
+  const lien=depLien(tr);
+  const ok=()=>afficherToast(_d('Lien copié','Link copied'),'success');
+  const secours=()=>{try{const a=document.createElement('textarea');a.value=lien;a.style.position='fixed';a.style.opacity='0';document.body.appendChild(a);a.select();document.execCommand('copy');document.body.removeChild(a);ok();}catch(e){afficherToast(lien,'success');}};
+  if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(lien).then(ok).catch(secours);else secours();
+}
+function depDemarrerSuivi(){
+  clearInterval(_depMinuteur);_depMinuteur=null;
+  if(!_depLire('dep_trajet'))return;
+  _depMinuteur=setInterval(depEnvoyerPosition,DEP_INTERVALLE_MS);
+}
+function _depArreterSuivi(){clearInterval(_depMinuteur);_depMinuteur=null;}
+async function depEnvoyerPosition(){
+  const tr=_depLire('dep_trajet');
+  if(!tr){_depArreterSuivi();return;}
+  if(Date.now()>tr.arrivee+DEP_GRACE_MS){_depEcrire('dep_trajet',null);_depArreterSuivi();depAfficherTrajet();return;}
+  if(document.hidden||!navigator.onLine||_depEnvoiEnCours)return;
+  const pos=await depPosition(12000);if(!pos)return;
+  try{
+    const res=await appelerServeur('trajet_maj',{id:tr.id,cle:tr.cle,lat:pos.lat,lng:pos.lng,precision:pos.precision},false);
+    if(res.ok){
+      const cur=_depLire('dep_trajet');if(cur&&cur.id===tr.id){cur.dernier=Date.now();_depEcrire('dep_trajet',cur);}
+      const e=document.getElementById('dep-a-pos');if(e)e.textContent=_depHeure(Date.now());
+    }else if(res.statut===404||res.erreur==='trajet_termine'||res.erreur==='cle'){
+      _depEcrire('dep_trajet',null);_depArreterSuivi();depAfficherTrajet();
+    }
+  }catch(e){}
+}
+async function depTerminerTrajet(){
+  const tr=_depLire('dep_trajet');if(!tr)return;
+  const b=document.getElementById('dep-btn-arrive');b.disabled=true;
+  try{
+    const res=await appelerServeur('trajet_fin',{id:tr.id,cle:tr.cle},false);
+    if(res.ok||res.statut===404||res.erreur==='cle'){
+      _depEcrire('dep_trajet',null);_depArreterSuivi();depAfficherTrajet();
+      afficherToast(_d('Partage terminé. Bonne arrivée !','Sharing stopped. Glad you arrived!'),'success');
+    }else afficherToast(_d('Connectez-vous à internet pour terminer le partage','Connect to the internet to stop sharing'),'error');
+  }catch(e){afficherToast(_d('Connectez-vous à internet pour terminer le partage','Connect to the internet to stop sharing'),'error');}
+  finally{b.disabled=false;}
+}
+
+// --- Moto / taxi : tout reste sur le telephone, envoi par WhatsApp (aucun serveur) ---
+function depMotoAfficher(){
+  const m=_depLire('dep_moto');
+  document.getElementById('dep-moto-form').style.display=m?'none':'block';
+  document.getElementById('dep-moto-actif').style.display=m?'block':'none';
+  if(!m)return;
+  document.getElementById('dep-m-plaque').textContent=m.plaque;
+  document.getElementById('dep-m-cond').textContent=m.conducteur?(_d('Conducteur : ','Driver: ')+m.conducteur):'';
+  document.getElementById('dep-m-depuis').textContent=_d('Départ : ','Started: ')+_depHeure(m.ts);
+}
+function depMotoEnvoyer(){
+  const plaque=document.getElementById('dep-plaque').value.trim().toUpperCase().slice(0,15);
+  const cond=document.getElementById('dep-conducteur').value.trim().slice(0,60);
+  if(plaque.length<3){afficherToast(_d('Indiquez la plaque','Enter the plate number'),'error');return;}
+  _depEcrire('dep_moto',{plaque:plaque,conducteur:cond,ts:Date.now()});
+  depMotoAfficher();
+  depMotoPartager();
+}
+function depMotoPartager(){
+  const m=_depLire('dep_moto');if(!m)return;
+  const pr=_depLire('dep_proche')||{};
+  const texte='🛡️ *AlertCitoyen* — Course moto-taxi\n🛵 Je prends une moto / un taxi.\nPlaque : '+m.plaque+'\n'+(m.conducteur?'Conducteur : '+m.conducteur+'\n':'')+'Départ : '+_depHeure(m.ts)+'\nJe t\'envoie un message « Arrivée confirmée » dès que je suis arrivé(e).';
+  window.open(depLienWhatsApp(depNumeroWhatsApp(pr.tel),texte),'_blank');
+}
+function depMotoTerminer(){
+  const m=_depLire('dep_moto');
+  const pr=_depLire('dep_proche')||{};
+  _depEcrire('dep_moto',null);
+  ['dep-plaque','dep-conducteur'].forEach(i=>{const e=document.getElementById(i);if(e)e.value='';});
+  depMotoAfficher();
+  if(m){
+    // Le premier message WhatsApp ne peut pas etre modifie : on prepare un nouveau message « Arrivee confirmee » (a envoyer par l'utilisateur)
+    const texte='✅ *AlertCitoyen* — Arrivée confirmée\nJe suis bien arrivé(e). Course moto-taxi terminée (plaque '+m.plaque+', départ '+_depHeure(m.ts)+', arrivée '+_depHeure(Date.now())+').';
+    window.open(depLienWhatsApp(depNumeroWhatsApp(pr.tel),texte),'_blank');
+  }
+  afficherToast(_d('Course terminée. Envoyez le message d\'arrivée à votre proche.','Trip finished. Send the arrival message to your contact.'),'success');
+}
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&_depLire('dep_trajet')){depDemarrerSuivi();depEnvoyerPosition();}});
+setTimeout(()=>{if(_depLire('dep_trajet')){depDemarrerSuivi();depEnvoyerPosition();}},2000);
+
+Object.assign(TRAD.fr,{'dep-carte-titre':'Mes déplacements','dep-carte-sub':'Partagez votre trajet avec un proche','dep-titre':'🛡️ Mes déplacements','dep-intro':'Faites suivre votre trajet par un proche, ou envoyez-lui les informations de votre moto ou taxi.','dep-onglet-trajet':'🧭 Trajet partagé','dep-onglet-moto':'🛵 Moto-taxi','dep-dest':'Destination','dep-heure':'Heure d\'arrivée prévue','dep-prenom':'Votre prénom (facultatif)','dep-proche':'Numéro WhatsApp du proche (facultatif)','dep-proche-note':'Enregistré seulement sur ce téléphone. Sans numéro, vous choisirez le contact dans WhatsApp.','dep-partager':'📤 Partager mon trajet','dep-note-pos':'Votre position est mise à jour tant que l\'application reste ouverte. Aucune alerte n\'est envoyée à la police.','dep-en-route':'🟢 Partage en cours','dep-arrivee-prevue':'Arrivée prévue','dep-derniere':'Dernière position envoyée','dep-envoyer-wa':'📲 Envoyer le lien par WhatsApp','dep-copier':'🔗 Copier le lien','dep-arrive':'✅ Je suis arrivé','dep-plaque':'Plaque d\'immatriculation','dep-conducteur':'Nom du conducteur (facultatif)','dep-photo':'Photo (facultative)','dep-moto-envoyer':'📤 Envoyer à mon proche','dep-moto-note':'Ces informations restent sur votre téléphone. Elles ne partent que vers la personne que vous choisissez dans WhatsApp.','dep-moto-en-cours':'🛵 Course enregistrée','dep-moto-renvoyer':'📤 Envoyer à nouveau'});
+Object.assign(TRAD.en,{'dep-carte-titre':'My trips','dep-carte-sub':'Share your trip with someone you trust','dep-titre':'🛡️ My trips','dep-intro':'Let a loved one follow your trip, or send them the details of your moto or taxi.','dep-onglet-trajet':'🧭 Shared trip','dep-onglet-moto':'🛵 Moto-taxi','dep-dest':'Destination','dep-heure':'Expected arrival time','dep-prenom':'Your first name (optional)','dep-proche':'Contact\'s WhatsApp number (optional)','dep-proche-note':'Saved on this phone only. Without a number, you will pick the contact in WhatsApp.','dep-partager':'📤 Share my trip','dep-note-pos':'Your position is updated while the app stays open. No alert is sent to the police.','dep-en-route':'🟢 Sharing in progress','dep-arrivee-prevue':'Expected arrival','dep-derniere':'Last position sent','dep-envoyer-wa':'📲 Send the link by WhatsApp','dep-copier':'🔗 Copy the link','dep-arrive':'✅ I have arrived','dep-plaque':'Plate number','dep-conducteur':'Driver\'s name (optional)','dep-photo':'Photo (optional)','dep-moto-envoyer':'📤 Send to my contact','dep-moto-note':'These details stay on your phone. They only go to the person you choose in WhatsApp.','dep-moto-en-cours':'🛵 Trip recorded','dep-moto-renvoyer':'📤 Send again'});
+Object.assign(TRAD.ar,{'dep-carte-titre':'تنقلاتي','dep-carte-sub':'شارك رحلتك مع شخص قريب منك','dep-titre':'🛡️ تنقلاتي','dep-intro':'دع أحد أقاربك يتابع رحلتك، أو أرسل له بيانات الدراجة أو سيارة الأجرة.','dep-onglet-trajet':'🧭 رحلة مشتركة','dep-onglet-moto':'🛵 دراجة / تاكسي','dep-dest':'الوجهة','dep-heure':'وقت الوصول المتوقع','dep-prenom':'اسمك (اختياري)','dep-proche':'رقم واتساب القريب (اختياري)','dep-proche-note':'يُحفظ على هذا الهاتف فقط. بدون رقم، ستختار جهة الاتصال في واتساب.','dep-partager':'📤 مشاركة رحلتي','dep-note-pos':'يتم تحديث موقعك ما دام التطبيق مفتوحاً. لا يُرسل أي تنبيه إلى الشرطة.','dep-en-route':'🟢 المشاركة جارية','dep-arrivee-prevue':'الوصول المتوقع','dep-derniere':'آخر موقع أُرسل','dep-envoyer-wa':'📲 إرسال الرابط عبر واتساب','dep-copier':'🔗 نسخ الرابط','dep-arrive':'✅ وصلت','dep-plaque':'رقم اللوحة','dep-conducteur':'اسم السائق (اختياري)','dep-photo':'صورة (اختيارية)','dep-moto-envoyer':'📤 إرسال إلى قريبي','dep-moto-note':'تبقى هذه المعلومات على هاتفك ولا تُرسل إلا إلى الشخص الذي تختاره في واتساب.','dep-moto-en-cours':'🛵 تم تسجيل الرحلة','dep-moto-renvoyer':'📤 إرسال مرة أخرى'});
+Object.assign(TRAD.fr,{'conf-s10-titre':'🧭 Mes déplacements','conf-s10-texte':'Trajet partagé :\n• Votre destination, l\'heure d\'arrivée prévue, votre prénom (facultatif) et votre position sont enregistrés sur nos serveurs uniquement pour être affichés à votre proche, grâce à un lien privé que vous lui envoyez vous-même. Seules les personnes qui ont ce lien peuvent le voir.\n• Aucune alerte n\'est envoyée à la police et aucun autre citoyen n\'est prévenu.\n• Votre position n\'est mise à jour que tant que l\'application reste ouverte.\n• Votre position est effacée quand vous touchez « Je suis arrivé » ; sinon le lien expire quelques heures après l\'heure d\'arrivée prévue.\n• Le numéro de votre proche reste uniquement sur votre téléphone.\n\nMoto-taxi : la plaque et le nom du conducteur restent sur votre téléphone. Ils ne partent que par WhatsApp, vers la personne que vous choisissez.'});
+Object.assign(TRAD.en,{'conf-s10-titre':'🧭 My trips','conf-s10-texte':'Shared trip:\n• Your destination, expected arrival time, first name (optional) and position are stored on our servers only so that your contact can see them through a private link that you send yourself. Only people who have this link can see it.\n• No alert is sent to the police and no other citizen is notified.\n• Your position is only updated while the app stays open.\n• Your position is deleted when you tap "I have arrived"; otherwise the link expires a few hours after the expected arrival time.\n• Your contact\'s number stays on your phone only.\n\nMoto-taxi: the plate number and driver\'s name stay on your phone. They only leave through WhatsApp, to the person you choose.'});
+Object.assign(TRAD.ar,{'conf-s10-titre':'🧭 تنقلاتي','conf-s10-texte':'الرحلة المشتركة:\n• تُحفظ وجهتك ووقت الوصول المتوقع واسمك (اختياري) وموقعك على خوادمنا فقط ليتمكن قريبك من رؤيتها عبر رابط خاص ترسله أنت بنفسك. لا يراها إلا من لديه هذا الرابط.\n• لا يُرسل أي تنبيه إلى الشرطة ولا يُبلَّغ أي مواطن آخر.\n• لا يتم تحديث موقعك إلا ما دام التطبيق مفتوحاً.\n• يُمحى موقعك عند الضغط على «وصلت»؛ وإلا فينتهي الرابط بعد ساعات قليلة من وقت الوصول المتوقع.\n• يبقى رقم قريبك على هاتفك فقط.\n\nدراجة / تاكسي: تبقى اللوحة واسم السائق على هاتفك ولا تغادره إلا عبر واتساب إلى الشخص الذي تختاره.'});
+
 function setLang(lang){
   langActuelle=lang;
   // lang dropdown handled by selectLang()
@@ -2066,6 +2328,7 @@ function naviguer(page){
   const ne=document.getElementById('nav-'+page);if(ne)ne.classList.add('active');
   if(page==='accueil'||page==='dashboard')chargerIncidents();
   if(page==='badges')afficherBadges();
+  if(page==='deplacements')depOuvrir();
   const sb=document.getElementById('sos-btn');if(sb)sb.style.display=(page==='admin'||page==='login'||page==='archives')?'none':'flex';
   window.scrollTo(0,0);
 }
@@ -2928,6 +3191,8 @@ const KB = [
   { mots: ['cree','créé','createur','developpe','qui a','auteur','fait','construit','fondateur','concepteur','developpeur','inventeur','qui est derriere','amegbleame','kossi','proprietaire','qui est le createur','createur d alertcitoyen','createur de l application','createur de alertcitoyen','qui est le developpeur','qui est le concepteur','qui est le fondateur','qui est l auteur','qui a cree','qui a developpe','qui a fait'], rep: "AlertCitoyen a été créé par <b>AMEGBLEAME Kossi</b>, un jeune inspiré par les problèmes de son pays, qui a développé AlertCitoyen pour la sécurité du Togo 🇹🇬." },
   // URGENCES GENERALES
   { mots: ['urgence','secours','aide','danger','help','appel','numero','en danger','je suis en danger','ne peux pas parler','ne peut pas parler','impossible de parler'], rep: "En cas d'urgence, appelez : Police 117, Gendarmerie 172, Pompiers 118 (boutons d'appel direct sur la page d'accueil de l'application).<br><br>🆘 <b>Si vous êtes en danger et ne pouvez pas parler</b> : maintenez le bouton rouge <b>SOS</b> (en bas à droite de l'écran) pendant 3 secondes. Votre position est envoyée automatiquement aux autorités, sans rien écrire. Demandez-moi « comment utiliser le SOS » pour le détail." },
+  // MES DEPLACEMENTS
+  { mots: ['deplacement','deplacements','trajet','trajets','partager mon trajet','partage de trajet','suivre mon trajet','accompagnement','moto','taxi','zemidjan','zem','plaque','mes deplacements'], rep: "La rubrique <b>Mes déplacements</b> (carte verte sur la page d'accueil, sous les numéros d'urgence) propose deux outils.<br><br><b>🧭 Trajet partagé</b> : vous indiquez votre destination et l'heure d'arrivée prévue, puis vous envoyez à un proche un lien privé par WhatsApp. Il voit votre position et votre heure d'arrivée sans rien installer. Vous touchez « Je suis arrivé » pour arrêter le partage. La position se met à jour tant que l'application reste ouverte. Aucune alerte n'est envoyée à la police.<br><br><b>🛵 Moto-taxi</b> : vous notez la plaque et, si vous voulez, le nom du conducteur, puis vous les envoyez à un proche par WhatsApp. Ces informations restent sur votre téléphone.<br><br>En cas de danger réel, appelez le 117, le 172 ou le 118, ou maintenez le bouton 🆘 enfoncé 3 secondes." },
   // PAYS SPECIFIQUES
   { mots: ['ghana'], rep: "Au Ghana, les numeros d'urgence sont : Police 191, Pompiers 192, Ambulance 193, Urgences generales 112." },
   { mots: ['benin','bénin'], rep: "Au Benin, les numeros d'urgence sont : Police 117, Gendarmerie 166, Pompiers 118, CRIET 21-31-32-39." },

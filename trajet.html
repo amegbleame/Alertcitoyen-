@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#C0392B">
+<title>Trajet partagé — AlertCitoyen</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:#1A1A2E;color:#fff;min-height:100vh;display:flex;flex-direction:column}
+header{background:#C0392B;padding:12px 16px;font-weight:800;font-size:16px}
+main{flex:1;padding:14px;max-width:560px;width:100%;margin:0 auto}
+.carte{background:#2C2C3E;border-radius:14px;padding:14px;margin-bottom:12px}
+.qui{font-size:13px;color:#b9bccb;margin-bottom:4px}
+.dest{font-size:20px;font-weight:800;line-height:1.25;word-break:break-word}
+.ligne{display:flex;justify-content:space-between;gap:10px;margin-top:10px;font-size:14px}
+.ligne span:first-child{color:#b9bccb}
+.etat{border-radius:14px;padding:14px;margin-bottom:12px;font-weight:700;font-size:15px;line-height:1.4}
+.etat.ok{background:#1e7a45}.etat.retard{background:#b9570f}.etat.fini{background:#2f4f7f}.etat.expire{background:#444a5c}
+#carte{height:280px;border-radius:14px;overflow:hidden;background:#2C2C3E;margin-bottom:12px}
+.petit{font-size:12.5px;color:#b9bccb;line-height:1.5;margin-top:6px}
+a.btn{display:block;text-align:center;background:#fff;color:#C0392B;font-weight:800;text-decoration:none;border-radius:12px;padding:12px;margin-top:10px}
+.cache{display:none}
+</style>
+</head>
+<body>
+<header>🛡️ AlertCitoyen — Trajet partagé</header>
+<main>
+  <div id="erreur" class="etat expire cache"></div>
+
+  <div id="contenu" class="cache">
+    <div class="carte">
+      <div class="qui" id="qui"></div>
+      <div class="dest" id="dest"></div>
+      <div class="ligne"><span>Arrivée prévue</span><strong id="arrivee"></strong></div>
+      <div class="ligne"><span>Dernière position</span><strong id="posAge"></strong></div>
+    </div>
+    <div id="etat" class="etat"></div>
+    <div id="carte"></div>
+    <a id="lienMaps" class="btn cache" target="_blank" rel="noopener noreferrer">📍 Ouvrir dans Google Maps</a>
+    <p class="petit">La position se met à jour seulement tant que l'application AlertCitoyen reste ouverte sur le téléphone de la personne. Si elle est ancienne, la personne a peut-être fermé l'application ou perdu le réseau. Cette page se met à jour toute seule.</p>
+    <p class="petit">Ce lien est privé et s'éteint à l'arrivée ou quelques heures après l'heure prévue. En cas d'inquiétude réelle, appelez la personne, puis les urgences : police 117, gendarmerie 172, pompiers 118.</p>
+  </div>
+</main>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+(function(){
+  var params = new URLSearchParams(location.search);
+  var id = params.get('t') || '';
+  var el = function(i){ return document.getElementById(i); };
+  var carte = null, marqueur = null, cercle = null, minuteur = null, decalage = 0, derniere = null;
+
+  function montrerErreur(msg){
+    el('contenu').className = 'cache';
+    var e = el('erreur'); e.className = 'etat expire'; e.textContent = msg;
+  }
+  function heure(ts){
+    try { return new Date(ts).toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'}); } catch(e){ return ''; }
+  }
+  function age(ts){
+    if (!ts) return 'inconnue';
+    var s = Math.max(0, Math.round((Date.now() + decalage - ts) / 1000));
+    if (s < 60) return 'à l\u2019instant';
+    var m = Math.round(s / 60);
+    if (m < 60) return 'il y a ' + m + ' min';
+    var h = Math.floor(m / 60);
+    return 'il y a ' + h + ' h ' + (m % 60) + ' min';
+  }
+  function dessiner(d){
+    derniere = d;
+    decalage = d.maintenant - Date.now();
+    el('contenu').className = '';
+    el('erreur').className = 'cache';
+    el('qui').textContent = d.prenom ? (d.prenom + ' est en route vers') : 'Une personne est en route vers';
+    el('dest').textContent = d.destination;
+    el('arrivee').textContent = heure(d.arrivee);
+    var e = el('etat');
+    if (d.statut === 'arrive') { e.className = 'etat fini'; e.textContent = '✅ Arrivé' + (d.finTs ? ' à ' + heure(d.finTs) : '') + '. Le partage est terminé et la position a été effacée.'; }
+    else if (d.statut === 'expire') { e.className = 'etat expire'; e.textContent = 'Ce lien a expiré. Le partage est terminé et la position a été effacée. Si vous êtes inquiet, appelez la personne.'; }
+    else if (d.statut === 'retard') { e.className = 'etat retard'; e.textContent = '⏰ Arrivée prévue à ' + heure(d.arrivee) + ' : la personne n\u2019a pas encore confirmé son arrivée. Essayez de l\u2019appeler.'; }
+    else { e.className = 'etat ok'; e.textContent = '🟢 En route. Arrivée prévue à ' + heure(d.arrivee) + '.'; }
+    var vue = d.statut === 'en_cours' || d.statut === 'retard';
+    el('carte').style.display = vue && d.lat !== null ? '' : 'none';
+    el('lienMaps').className = vue && d.lat !== null ? 'btn' : 'btn cache';
+    if (vue && d.lat !== null) {
+      el('lienMaps').href = 'https://www.google.com/maps?q=' + d.lat + ',' + d.lng;
+      if (typeof L !== 'undefined') {
+        if (!carte) {
+          carte = L.map('carte', {zoomControl: true}).setView([d.lat, d.lng], 15);
+          L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom: 19, attribution: '© OpenStreetMap'}).addTo(carte);
+          marqueur = L.marker([d.lat, d.lng]).addTo(carte);
+        } else {
+          marqueur.setLatLng([d.lat, d.lng]);
+          carte.panTo([d.lat, d.lng]);
+        }
+        if (cercle) { carte.removeLayer(cercle); cercle = null; }
+        if (d.precision && d.precision > 30 && d.precision < 5000) cercle = L.circle([d.lat, d.lng], {radius: d.precision, weight: 1}).addTo(carte);
+        setTimeout(function(){ carte.invalidateSize(); }, 50);
+      }
+    }
+    majAge();
+    return vue;
+  }
+  function majAge(){
+    if (!derniere) return;
+    var vue = derniere.statut === 'en_cours' || derniere.statut === 'retard';
+    el('posAge').textContent = vue ? (derniere.posTs ? age(derniere.posTs) : 'pas encore reçue') : '—';
+  }
+  function interroger(){
+    fetch('/api/envoyer', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({action: 'trajet_voir', id: id}),
+      cache: 'no-store'
+    }).then(function(r){ return r.json().catch(function(){ return {}; }).then(function(j){ return {st: r.status, j: j}; }); })
+    .then(function(o){
+      if (o.st === 404) return montrerErreur('Ce lien n\u2019existe pas ou n\u2019existe plus.');
+      if (o.st === 429) return programmer(60000);
+      if (!o.j || !o.j.ok) return programmer(30000);
+      var vue = dessiner(o.j);
+      programmer(vue ? 20000 : 0);
+    })
+    .catch(function(){
+      // pas de réseau : on garde ce qu'on a et on réessaie
+      programmer(30000);
+    });
+  }
+  function programmer(ms){
+    clearTimeout(minuteur);
+    if (ms > 0) minuteur = setTimeout(interroger, ms);
+  }
+  if (!/^[A-Za-z0-9_-]{8,40}$/.test(id)) {
+    montrerErreur('Lien incomplet. Demandez à la personne de vous renvoyer son lien de trajet.');
+  } else {
+    interroger();
+    setInterval(majAge, 15000);
+    document.addEventListener('visibilitychange', function(){ if (!document.hidden) interroger(); });
+  }
+})();
+</script>
+</body>
+</html>
